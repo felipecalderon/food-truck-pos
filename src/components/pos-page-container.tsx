@@ -1,0 +1,43 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import type { Product } from "@/types/product";
+import { ProductList } from "./product-list";
+import { ShoppingCart } from "./shopping-cart";
+import { Input } from "@/components/ui/input";
+
+interface POSPageContainerProps {
+  initialProducts: Product[];
+}
+
+export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
+  const [products] = useState<Product[]>(initialProducts);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm) return products;
+    return products.filter(
+      (p) =>
+        p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.sku.toString().includes(searchTerm)
+    );
+  }, [products, searchTerm]);
+
+  return (
+    <main className="grid md:grid-cols-2 gap-8 p-6">
+      <ShoppingCart />
+      <div className="flex flex-col gap-6">
+        <div className="flex justify-between items-center">
+          <div className="w-64">
+            <Input
+              placeholder="Buscar por nombre o SKU..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+        <ProductList products={filteredProducts} />
+      </div>
+    </main>
+  );
+}

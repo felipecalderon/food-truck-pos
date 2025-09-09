@@ -1,5 +1,5 @@
-import { SalesList } from './components/sales-list';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SalesList } from "@/components/sales-list";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SalesPage() {
   return (

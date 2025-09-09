@@ -1,7 +1,7 @@
 "use server";
 
-import { BACKEND_URL } from "@/app/common/enviroments";
-import { Product } from "@/app/pos/types";
+import { BACKEND_URL } from "@/common/enviroments";
+import type { Product } from "@/types/product";
 
 interface RawProduct {
   sku: number;

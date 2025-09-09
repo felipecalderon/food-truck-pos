@@ -1,6 +1,7 @@
 "use client";
 
-import type { Product } from "@/app/pos/types";
+import type { Product } from "@/types/product";
+import { useCartStore } from "@/stores/cart";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 
 interface ProductListProps {
   products: Product[];
-  handleAddToCart: (product: Product) => void;
 }
 
 const formatCurrency = (amount: number) => {
@@ -23,14 +23,13 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-export function ProductList({ products, handleAddToCart }: ProductListProps) {
+export function ProductList({ products }: ProductListProps) {
+  const { addToCart } = useCartStore();
+
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[75vh] overflow-y-auto">
       {products.map((product) => (
-        <Card
-          key={product.sku}
-          className="transition-all hover:shadow-lg"
-        >
+        <Card key={product.sku} className="transition-all hover:shadow-lg">
           <CardHeader>
             <CardTitle className="text-base">{product.nombre}</CardTitle>
           </CardHeader>
@@ -44,7 +43,7 @@ export function ProductList({ products, handleAddToCart }: ProductListProps) {
           </CardContent>
           <CardFooter>
             <Button
-              onClick={() => handleAddToCart(product)}
+              onClick={() => addToCart(product)}
               className="w-full transition-transform hover:scale-105"
             >
               Agregar
