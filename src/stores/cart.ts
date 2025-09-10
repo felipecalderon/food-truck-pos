@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import type { CartItem } from "@/types/cart";
-import type { Sale } from "@/types/sale";
-import { saveSale as saveSaleAction } from "@/actions/sales";
 import { Product } from "@/types/product";
+import { createSaleInRedis } from "@/actions/sales";
 
 type PaymentMethod = "Efectivo" | "Debito" | "Credito";
 
@@ -67,6 +66,14 @@ export const useCartStore = create<CartState>((set, get) => ({
   setAmountPaid: (amount) => set({ amountPaid: amount }),
 
   saveSale: async () => {
+    const posName = localStorage.getItem("pos_name");
+    if (!posName) {
+      alert(
+        "Error: No se ha configurado un nombre para este POS. Por favor, recargue la página."
+      );
+      return;
+    }
+
     set({ isSaving: true });
     const {
       items,
@@ -80,25 +87,25 @@ export const useCartStore = create<CartState>((set, get) => ({
     const change = getChange();
 
     try {
-      await saveSaleAction(items, total, paymentMethod, amountPaid, change);
-
-      // Save to localStorage
-      const sale: Omit<Sale, "date"> = {
+      const result = await createSaleInRedis(
         items,
         total,
         paymentMethod,
         amountPaid,
         change,
-      };
-      const sales = JSON.parse(localStorage.getItem("sales") || "[]");
-      sales.push({ ...sale, date: new Date().toISOString() });
-      localStorage.setItem("sales", JSON.stringify(sales));
+        posName
+      );
 
-      clearCart();
-      alert("Venta guardada con éxito");
+      if (result.success) {
+        clearCart();
+        alert("Venta guardada con éxito");
+      } else {
+        throw new Error(result.message);
+      }
     } catch (error) {
       console.error("Error saving sale:", error);
-      alert("Hubo un error al guardar la venta.");
+      alert(`Hubo un error al guardar la venta: ${error instanceof Error ? error.message : 'Error desconocido'}`
+      );
     } finally {
       set({ isSaving: false });
     }

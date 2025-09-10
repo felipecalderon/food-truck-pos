@@ -1,6 +1,8 @@
 import { CartItem } from "./cart";
 
 export interface Sale {
+  id: string; // ID único de la venta
+  posName: string; // Nombre del POS que generó la venta
   items: CartItem[];
   total: number;
   date: string;
@@ -8,3 +10,4 @@ export interface Sale {
   amountPaid: number;
   change: number;
 }
+

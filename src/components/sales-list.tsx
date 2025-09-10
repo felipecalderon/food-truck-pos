@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import type { Sale } from "@/types/sale";
 import { Button } from "@/components/ui/button";
@@ -26,14 +25,11 @@ const formatDate = (dateString: string) => {
   return date.toLocaleString("es-CL");
 };
 
-export function SalesList() {
-  const [sales, setSales] = useState<Sale[]>([]);
+interface SalesListProps {
+  sales: Sale[];
+}
 
-  useEffect(() => {
-    const storedSales = JSON.parse(localStorage.getItem("sales") || "[]");
-    setSales(storedSales);
-  }, []);
-
+export function SalesList({ sales }: SalesListProps) {
   const handleExport = () => {
     const worksheetData = sales.map((sale) => ({
       Fecha: formatDate(sale.date),
@@ -44,6 +40,8 @@ export function SalesList() {
       "Método de Pago": sale.paymentMethod,
       "Monto Pagado": sale.amountPaid,
       Vuelto: sale.change,
+      "ID Venta": sale.id,
+      "Nombre POS": sale.posName,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
@@ -58,6 +56,8 @@ export function SalesList() {
       { wch: 15 }, // Método de Pago
       { wch: 15 }, // Monto Pagado
       { wch: 15 }, // Cambio
+      { wch: 38 }, // ID Venta
+      { wch: 15 }, // Nombre POS
     ];
 
     XLSX.writeFile(workbook, "historial_ventas.xlsx");
@@ -85,12 +85,12 @@ export function SalesList() {
           {sales.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                No hay ventas registradas.
+                No hay ventas registradas para este POS.
               </TableCell>
             </TableRow>
           ) : (
-            sales.map((sale, index) => (
-              <TableRow key={index}>
+            sales.map((sale) => (
+              <TableRow key={sale.id}>
                 <TableCell>{formatDate(sale.date)}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">

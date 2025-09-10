@@ -1,8 +1,11 @@
 "use server";
 
 import type { CartItem } from "@/types/cart";
+import { Sale } from "@/types/sale";
 import fs from "node:fs/promises";
 import path from "node:path";
+import redis from "@/lib/redis";
+import { randomUUID } from "crypto";
 
 // Helper para formatear la moneda
 const formatCurrency = (amount: number) => {
@@ -11,6 +14,75 @@ const formatCurrency = (amount: number) => {
     currency: "CLP",
   }).format(amount);
 };
+
+export async function createSaleInRedis(
+  cart: CartItem[],
+  total: number,
+  paymentMethod: Sale['paymentMethod'],
+  amountPaid: number,
+  change: number,
+  posName: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const saleTimestamp = new Date();
+    const saleId = randomUUID();
+
+    const sale: Sale = {
+      id: saleId,
+      posName,
+      items: cart,
+      total,
+      date: saleTimestamp.toISOString(),
+      paymentMethod,
+      amountPaid,
+      change,
+    };
+
+    // Guardar la venta en Redis
+    // Usamos una transacción para asegurar que ambas operaciones (guardar venta y añadir al índice) se completen
+    await redis.multi()
+      .set(`sale:${saleId}`, JSON.stringify(sale))
+      .sadd(`pos:${posName}:sales`, saleId)
+      .exec();
+
+    console.log(`Venta ${saleId} desde ${posName} guardada en Redis.`);
+    return { success: true, message: "Venta guardada con éxito en Redis." };
+  } catch (error) {
+    console.error("Error al guardar la venta en Redis:", error);
+    return {
+      success: false,
+      message: "Error al guardar la venta en Redis.",
+    };
+  }
+}
+
+export async function getSalesByPosName(posName: string): Promise<Sale[]> {
+  try {
+    const saleIds = await redis.smembers(`pos:${posName}:sales`);
+    if (saleIds.length === 0) {
+      return [];
+    }
+
+    const saleKeys = saleIds.map(id => `sale:${id}`);
+    const salesJson = await redis.mget(saleKeys);
+
+    const sales = salesJson
+      .map((saleJson) => {
+        try {
+          return saleJson ? (JSON.parse(saleJson) as Sale) : null;
+        } catch (e) {
+          return null; // Ignorar JSON corrupto
+        }
+      })
+      .filter((sale): sale is Sale => sale !== null)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return sales;
+  } catch (error) {
+    console.error(`Error fetching sales for ${posName}:`, error);
+    return [];
+  }
+}
 
 export async function saveSale(
   cart: CartItem[],
