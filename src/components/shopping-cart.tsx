@@ -201,7 +201,7 @@ export function ShoppingCart() {
             disabled={isSaleDisabled}
             onClick={saveSale}
           >
-            {isSaving ? "Guardando..." : "Finalizar Compra"}
+            {isSaving ? "Guardando..." : "Finalizar Venta"}
           </Button>
         </CardFooter>
       </Card>
