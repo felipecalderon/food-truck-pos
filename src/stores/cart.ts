@@ -9,12 +9,14 @@ interface CartState {
   items: CartItem[];
   paymentMethod: PaymentMethod;
   amountPaid: number;
+  comment: string;
   isSaving: boolean;
   addToCart: (product: Product) => void;
   updateQuantity: (sku: number, quantity: number) => void;
   clearCart: () => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   setAmountPaid: (amount: number) => void;
+  setComment: (comment: string) => void;
   saveSale: () => Promise<void>;
   getCartTotal: () => number;
   getChange: () => number;
@@ -24,6 +26,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   paymentMethod: "Efectivo",
   amountPaid: 0,
+  comment: "",
   isSaving: false,
 
   addToCart: (product) => {
@@ -54,7 +57,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     });
   },
 
-  clearCart: () => set({ items: [], amountPaid: 0 }),
+  clearCart: () => set({ items: [], amountPaid: 0, comment: "" }),
 
   setPaymentMethod: (method) => {
     set({ paymentMethod: method });
@@ -64,6 +67,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   setAmountPaid: (amount) => set({ amountPaid: amount }),
+  setComment: (comment) => set({ comment }),
 
   saveSale: async () => {
     const posName = localStorage.getItem("pos_name");
@@ -79,6 +83,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       items,
       paymentMethod,
       amountPaid,
+      comment,
       getCartTotal,
       getChange,
       clearCart,
@@ -93,7 +98,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         paymentMethod,
         amountPaid,
         change,
-        posName
+        posName,
+        comment
       );
 
       if (result.success) {

@@ -10,6 +10,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-CL', {
@@ -54,17 +60,34 @@ export function TotalSalesList({ sales }: TotalSalesListProps) {
       </TableHeader>
       <TableBody>
         {sales.map((sale) => (
-          <TableRow key={sale.id}>
-            <TableCell className="font-mono text-xs">{sale.id.substring(0, 8)}...</TableCell>
-            <TableCell>
-              <Badge variant="outline">{sale.posName}</Badge>
-            </TableCell>
-            <TableCell>{formatDate(sale.date)}</TableCell>
-            <TableCell className="max-w-xs truncate">
-              {sale.items.map((item) => `${item.nombre} (x${item.quantity})`).join(', ')}
-            </TableCell>
-            <TableCell className="text-right font-semibold">{formatCurrency(sale.total)}</TableCell>
-          </TableRow>
+          <TooltipProvider key={sale.id}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TableRow className="hover:bg-muted/50 cursor-pointer">
+                  <TableCell className="font-mono text-xs">
+                    {sale.id.substring(0, 8)}...
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{sale.posName}</Badge>
+                  </TableCell>
+                  <TableCell>{formatDate(sale.date)}</TableCell>
+                  <TableCell className="max-w-xs truncate">
+                    {sale.items
+                      .map((item) => `${item.nombre} (x${item.quantity})`)
+                      .join(", ")}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    {formatCurrency(sale.total)}
+                  </TableCell>
+                </TableRow>
+              </TooltipTrigger>
+              {sale.comment && (
+                <TooltipContent>
+                  <p>{sale.comment}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         ))}
       </TableBody>
     </Table>

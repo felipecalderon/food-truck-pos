@@ -9,5 +9,6 @@ export interface Sale {
   paymentMethod: "Efectivo" | "Debito" | "Credito";
   amountPaid: number;
   change: number;
+  comment?: string; // Comentario opcional de la venta
 }
 

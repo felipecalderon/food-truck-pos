@@ -12,6 +12,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("es-CL", {
@@ -90,28 +96,39 @@ export function SalesList({ sales }: SalesListProps) {
             </TableRow>
           ) : (
             sales.map((sale) => (
-              <TableRow key={sale.id}>
-                <TableCell>{formatDate(sale.date)}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {sale.items.map((item) => (
-                      <Badge key={item.sku} variant="secondary">
-                        {item.nombre} (x{item.quantity})
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>{sale.paymentMethod}</TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(sale.total)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(sale.amountPaid)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(sale.change)}
-                </TableCell>
-              </TableRow>
+              <TooltipProvider key={sale.id}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TableRow className="hover:bg-muted/50 cursor-pointer">
+                      <TableCell>{formatDate(sale.date)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {sale.items.map((item) => (
+                            <Badge key={item.sku} variant="secondary">
+                              {item.nombre} (x{item.quantity})
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>{sale.paymentMethod}</TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(sale.total)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(sale.amountPaid)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(sale.change)}
+                      </TableCell>
+                    </TableRow>
+                  </TooltipTrigger>
+                  {sale.comment && (
+                    <TooltipContent>
+                      <p>{sale.comment}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             ))
           )}
         </TableBody>

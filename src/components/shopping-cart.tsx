@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea"; // Importar Textarea
 import {
   Table,
   TableBody,
@@ -28,10 +29,12 @@ export function ShoppingCart() {
     items,
     paymentMethod,
     amountPaid,
+    comment, // Obtener comment
     isSaving,
     updateQuantity,
     setPaymentMethod,
     setAmountPaid,
+    setComment, // Obtener setComment
     saveSale,
     getCartTotal,
     getChange,
@@ -135,6 +138,17 @@ export function ShoppingCart() {
                     <Label htmlFor="r3">Crédito</Label>
                   </div>
                 </RadioGroup>
+              </div>
+
+              {/* Campo de Comentario */}
+              <div className="grid gap-2">
+                <Label htmlFor="comment">Comentario (opcional)</Label>
+                <Textarea
+                  id="comment"
+                  placeholder="Añade un comentario a la venta..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
               </div>
 
               {paymentMethod === "Efectivo" && (

@@ -21,7 +21,8 @@ export async function createSaleInRedis(
   paymentMethod: Sale['paymentMethod'],
   amountPaid: number,
   change: number,
-  posName: string
+  posName: string,
+  comment?: string
 ): Promise<{ success: boolean; message: string }> {
   try {
     const saleTimestamp = new Date();
@@ -36,6 +37,7 @@ export async function createSaleInRedis(
       paymentMethod,
       amountPaid,
       change,
+      comment,
     };
 
     // Guardar la venta en Redis
