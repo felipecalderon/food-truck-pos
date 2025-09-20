@@ -2,11 +2,15 @@
 
 import type { CartItem } from "@/types/cart";
 import { PaymentMethod, Sale } from "@/types/sale";
+import { CashRegisterSession } from "@/types/cash-register";
 import fs from "node:fs/promises";
 import path from "node:path";
 import redis from "@/lib/redis";
 import { randomUUID } from "crypto";
 import { formatCurrency } from "@/lib/utils";
+
+const POS_NAME = "main-pos"; // TODO: Esto debería ser dinámico
+const CURRENT_SESSION_KEY = `cash-register:${POS_NAME}:current`;
 
 export async function createSaleInRedis(
   cart: CartItem[],
@@ -17,7 +21,24 @@ export async function createSaleInRedis(
   posName: string,
   comment?: string
 ): Promise<{ success: boolean; message: string }> {
+  // Primero, verificar si la caja está abierta
+  const sessionData = await redis.get(CURRENT_SESSION_KEY);
+  if (!sessionData) {
+    return {
+      success: false,
+      message: "Error: La caja está cerrada. No se pueden registrar ventas.",
+    };
+  }
+
   try {
+    const session = JSON.parse(sessionData as string) as CashRegisterSession;
+    if (session.status !== "OPEN") {
+      return {
+        success: false,
+        message: `Error: La caja tiene un estado inválido (${session.status}).`,
+      };
+    }
+
     const saleTimestamp = new Date();
     const saleId = randomUUID();
 
@@ -33,12 +54,19 @@ export async function createSaleInRedis(
       comment,
     };
 
-    // Guardar la venta en Redis
-    // Usamos una transacción para asegurar que ambas operaciones (guardar venta y añadir al índice) se completen
+    // Actualizar el total de ventas en la sesión de caja
+    const newCalculatedSales = session.calculatedSales + total;
+    const updatedSession: CashRegisterSession = {
+      ...session,
+      calculatedSales: newCalculatedSales,
+    };
+
+    // Usamos una transacción para asegurar que todas las operaciones se completen
     await redis
       .multi()
       .set(`sale:${saleId}`, JSON.stringify(sale))
       .sadd(`pos:${posName}:sales`, saleId)
+      .set(CURRENT_SESSION_KEY, JSON.stringify(updatedSession)) // Actualizamos la sesión
       .exec();
 
     console.log(`Venta ${saleId} desde ${posName} guardada en Redis.`);

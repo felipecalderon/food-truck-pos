@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { Globe, ShoppingCart, List } from "lucide-react";
+import { CashRegisterStatus } from "@/components/cash-register-status";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -48,6 +49,7 @@ export default function RootLayout({
                 <span>Ventas</span>
               </Link>
             </nav>
+            <CashRegisterStatus />
           </header>
           <main>{children}</main>
           <PosNameSetup />
