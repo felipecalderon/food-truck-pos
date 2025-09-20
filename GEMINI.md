@@ -10,6 +10,10 @@ El proyecto es una aplicación web de **Punto de Venta (POS)** construida con Ne
 
 Ser siempre analista antes de cualquier cambio, no dejar comentarios sin sentido, en caso de necesitar comentarios transformar todo el componente o función con JSDocs en español, enfocarse en las diferencias entre client y server components, pensar siempre en la modularización y clean arquitecture de la estructura actual.
 
+## Server/Client components
+
+Los componentes de cliente se comunican con server actions usando en el componente de cliente: useTransition, la server action siempre debe comenzar por "use server" y solo puede exportar promesas, si se exporta por ejemplo un string desde un server action arrojará un error.
+
 ## Tecnologías Principales
 
 - **Framework**: [Next.js](https://nextjs.org/) (con App Router)

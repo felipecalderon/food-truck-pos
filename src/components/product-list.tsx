@@ -21,7 +21,7 @@ export function ProductList({ products }: ProductListProps) {
   const { addToCart } = useCartStore();
 
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[75vh] p-2 overflow-hidden">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[75vh] p-2 overflow-x-hidden">
       {products.map((product) => (
         <Card
           key={product.sku}
