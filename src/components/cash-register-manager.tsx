@@ -24,6 +24,7 @@ import { formatCurrency } from "@/lib/utils";
 export function CashRegisterManager() {
   const [session, setSession] = useState<CashRegisterSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [posName, setPosName] = useState<string | null>(null);
 
   // Estados para los diálogos
   const [isOpening, setIsOpening] = useState(false);
@@ -32,9 +33,18 @@ export function CashRegisterManager() {
   const [closingBalance, setClosingBalance] = useState("");
 
   useEffect(() => {
+    const storedPosName = localStorage.getItem("pos_name");
+    if (storedPosName) {
+      setPosName(storedPosName);
+    } else {
+      // Manejar el caso donde no hay posName, quizás deshabilitar botones o mostrar un mensaje
+      setIsLoading(false);
+      return;
+    }
+
     const fetchSession = async () => {
       setIsLoading(true);
-      const currentSession = await getCurrentSession();
+      const currentSession = await getCurrentSession(storedPosName);
       setSession(currentSession);
       setIsLoading(false);
     };
@@ -42,16 +52,18 @@ export function CashRegisterManager() {
   }, []);
 
   const handleOpenRegister = async () => {
+    if (!posName) return; // No se puede abrir la caja sin un nombre de POS
     const balance = parseFloat(openingBalance);
     if (isNaN(balance)) return;
-    await openCashRegister(balance);
+    await openCashRegister(balance, posName);
     window.location.reload();
   };
 
   const handleCloseRegister = async () => {
+    if (!posName || !session) return; // No se puede cerrar la caja sin un nombre de POS o sin sesión
     const balance = parseFloat(closingBalance);
-    if (isNaN(balance) || !session) return;
-    await closeCashRegister(balance);
+    if (isNaN(balance)) return;
+    await closeCashRegister(balance, posName);
     window.location.reload();
   };
 

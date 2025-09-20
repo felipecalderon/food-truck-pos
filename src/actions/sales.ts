@@ -11,7 +11,7 @@ import { randomUUID } from "crypto";
 import { formatCurrency } from "@/lib/utils";
 import { isToday, isThisWeek, isThisMonth } from "date-fns";
 
-const POS_NAME = "main-pos"; // TODO: Esto debería ser dinámico
+const POS_NAME_CONSTANT = "main-pos"; // TODO: Esto debería ser dinámico
 
 export async function getAllSales(searchParams: {
   range?: string;
@@ -74,7 +74,7 @@ export async function createSaleInRedis(
   posName: string,
   comment?: string
 ): Promise<{ success: boolean; message: string }> {
-  const session = await getCurrentSession();
+  const session = await getCurrentSession(posName);
   if (!session) {
     return {
       success: false,
@@ -110,7 +110,7 @@ export async function createSaleInRedis(
       ...session,
       calculatedSales: newCalculatedSales,
     };
-    const CURRENT_SESSION_KEY = `cash-register:${POS_NAME}:current`;
+    const CURRENT_SESSION_KEY = `cash-register:${posName}:current`;
     await redis
       .multi()
       .set(`sale:${saleId}`, JSON.stringify(sale))
@@ -196,8 +196,8 @@ export async function deleteSale(
 
     await redis.del(saleKey);
     await redis.srem(`pos:${sale.posName}:sales`, saleId);
-    const CURRENT_SESSION_KEY = `cash-register:${POS_NAME}:current`;
-    const session = await getCurrentSession();
+    const CURRENT_SESSION_KEY = `cash-register:${sale.posName}:current`;
+    const session = await getCurrentSession(sale.posName);
     if (session) {
       const updatedSession: CashRegisterSession = {
         ...session,
