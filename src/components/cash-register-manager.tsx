@@ -56,7 +56,11 @@ export function CashRegisterManager() {
   };
 
   if (isLoading) {
-    return <Button disabled>Cargando estado de caja...</Button>;
+    return (
+      <Button size="sm" disabled>
+        Cargando estado de caja...
+      </Button>
+    );
   }
 
   if (session && session.status === "OPEN") {
@@ -64,7 +68,9 @@ export function CashRegisterManager() {
     return (
       <Dialog open={isClosing} onOpenChange={setIsClosing}>
         <DialogTrigger asChild>
-          <Button variant="destructive">Cerrar Caja</Button>
+          <Button size="sm" variant="destructive">
+            Cerrar Caja
+          </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
@@ -87,7 +93,10 @@ export function CashRegisterManager() {
               <span>{formatCurrency(expectedInDrawer)}</span>
             </div>
             <div className="grid grid-cols-4 items-center gap-4 pt-4">
-              <Label htmlFor="closing-balance" className="text-right col-span-2">
+              <Label
+                htmlFor="closing-balance"
+                className="text-right col-span-2"
+              >
                 Monto Final Contado
               </Label>
               <Input
@@ -96,12 +105,14 @@ export function CashRegisterManager() {
                 value={closingBalance}
                 onChange={(e) => setClosingBalance(e.target.value)}
                 className="col-span-2"
-                placeholder="0.00"
+                placeholder="0"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleCloseRegister}>Confirmar y Cerrar Caja</Button>
+            <Button onClick={handleCloseRegister}>
+              Confirmar y Cerrar Caja
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -111,7 +122,7 @@ export function CashRegisterManager() {
   return (
     <Dialog open={isOpening} onOpenChange={setIsOpening}>
       <DialogTrigger asChild>
-        <Button>Abrir Caja</Button>
+        <Button size="sm">Abrir Caja</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

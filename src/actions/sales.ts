@@ -2,6 +2,7 @@
 
 import type { CartItem } from "@/types/cart";
 import { PaymentMethod, Sale } from "@/types/sale";
+import { getCurrentSession } from "@/actions/cash-register";
 import { CashRegisterSession } from "@/types/cash-register";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -11,7 +12,6 @@ import { formatCurrency } from "@/lib/utils";
 import { isToday, isThisWeek, isThisMonth } from "date-fns";
 
 const POS_NAME = "main-pos"; // TODO: Esto debería ser dinámico
-const CURRENT_SESSION_KEY = `cash-register:${POS_NAME}:current`;
 
 export async function getAllSales(searchParams: {
   range?: string;
@@ -74,24 +74,22 @@ export async function createSaleInRedis(
   posName: string,
   comment?: string
 ): Promise<{ success: boolean; message: string }> {
-  // Primero, verificar si la caja está abierta
-  const sessionData = await redis.get(CURRENT_SESSION_KEY);
-  if (!sessionData) {
+  const session = await getCurrentSession();
+  if (!session) {
     return {
       success: false,
       message: "Error: La caja está cerrada. No se pueden registrar ventas.",
     };
   }
 
-  try {
-    const session = JSON.parse(sessionData as string) as CashRegisterSession;
-    if (session.status !== "OPEN") {
-      return {
-        success: false,
-        message: `Error: La caja tiene un estado inválido (${session.status}).`,
-      };
-    }
+  if (session.status !== "OPEN") {
+    return {
+      success: false,
+      message: `Error: La caja tiene un estado inválido (${session.status}).`,
+    };
+  }
 
+  try {
     const saleTimestamp = new Date();
     const saleId = randomUUID();
 
@@ -107,19 +105,17 @@ export async function createSaleInRedis(
       comment,
     };
 
-    // Actualizar el total de ventas en la sesión de caja
     const newCalculatedSales = session.calculatedSales + total;
     const updatedSession: CashRegisterSession = {
       ...session,
       calculatedSales: newCalculatedSales,
     };
-
-    // Usamos una transacción para asegurar que todas las operaciones se completen
+    const CURRENT_SESSION_KEY = `cash-register:${POS_NAME}:current`;
     await redis
       .multi()
       .set(`sale:${saleId}`, JSON.stringify(sale))
       .sadd(`pos:${posName}:sales`, saleId)
-      .set(CURRENT_SESSION_KEY, JSON.stringify(updatedSession)) // Actualizamos la sesión
+      .set(CURRENT_SESSION_KEY, JSON.stringify(updatedSession))
       .exec();
 
     console.log(`Venta ${saleId} desde ${posName} guardada en Redis.`);
@@ -200,11 +196,9 @@ export async function deleteSale(
 
     await redis.del(saleKey);
     await redis.srem(`pos:${sale.posName}:sales`, saleId);
-
-    // Update cash register session
-    const sessionData = await redis.get(CURRENT_SESSION_KEY);
-    if (sessionData) {
-      const session = JSON.parse(sessionData as string) as CashRegisterSession;
+    const CURRENT_SESSION_KEY = `cash-register:${POS_NAME}:current`;
+    const session = await getCurrentSession();
+    if (session) {
       const updatedSession: CashRegisterSession = {
         ...session,
         calculatedSales: session.calculatedSales - sale.total,

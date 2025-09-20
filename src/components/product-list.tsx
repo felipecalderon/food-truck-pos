@@ -21,9 +21,13 @@ export function ProductList({ products }: ProductListProps) {
   const { addToCart } = useCartStore();
 
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[75vh] overflow-y-auto">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[75vh] p-2 overflow-hidden">
       {products.map((product) => (
-        <Card key={product.sku} className="transition-all hover:shadow-lg">
+        <Card
+          key={product.sku}
+          className="cursor-pointer hover:scale-105 transition-all"
+          onClick={() => addToCart(product)}
+        >
           <CardHeader>
             <CardTitle className="text-base">{product.nombre}</CardTitle>
           </CardHeader>
@@ -35,14 +39,6 @@ export function ProductList({ products }: ProductListProps) {
               Stock: {product.stock}
             </Badge>
           </CardContent>
-          <CardFooter>
-            <Button
-              onClick={() => addToCart(product)}
-              className="w-full transition-transform hover:scale-105"
-            >
-              Agregar
-            </Button>
-          </CardFooter>
         </Card>
       ))}
     </div>

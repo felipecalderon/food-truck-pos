@@ -52,10 +52,13 @@ export const closeCashRegister = async (
 
   const session = JSON.parse(sessionData as string) as CashRegisterSession;
   if (session.status !== "OPEN") {
-    throw new Error(`La sesión de caja tiene un estado inválido: ${session.status}`);
+    throw new Error(
+      `La sesión de caja tiene un estado inválido: ${session.status}`
+    );
   }
 
-  const difference = closingBalance - session.openingBalance - session.calculatedSales;
+  const difference =
+    closingBalance - session.openingBalance - session.calculatedSales;
 
   const closedSession: CashRegisterSession = {
     ...session,

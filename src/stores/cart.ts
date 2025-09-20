@@ -17,7 +17,9 @@ interface CartState {
   setPaymentMethod: (method: PaymentMethod) => void;
   setAmountPaid: (amount: number) => void;
   setComment: (comment: string) => void;
-  saveSale: () => Promise<void>;
+  saveSale: (
+    posName: string
+  ) => Promise<{ success: boolean; message: string }>;
   getCartTotal: () => number;
   getChange: () => number;
 }
@@ -69,15 +71,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   setAmountPaid: (amount) => set({ amountPaid: amount }),
   setComment: (comment) => set({ comment }),
 
-  saveSale: async () => {
-    const posName = localStorage.getItem("pos_name");
-    if (!posName) {
-      alert(
-        "Error: No se ha configurado un nombre para este POS. Por favor, recargue la página."
-      );
-      return;
-    }
-
+  saveSale: async (posName: string) => {
     set({ isSaving: true });
     const {
       items,
@@ -104,14 +98,15 @@ export const useCartStore = create<CartState>((set, get) => ({
 
       if (result.success) {
         clearCart();
-        alert("Venta guardada con éxito");
-      } else {
-        throw new Error(result.message);
       }
+      return result;
     } catch (error) {
       console.error("Error saving sale:", error);
-      alert(`Hubo un error al guardar la venta: ${error instanceof Error ? error.message : 'Error desconocido'}`
-      );
+      return {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Error desconocido",
+      };
     } finally {
       set({ isSaving: false });
     }
