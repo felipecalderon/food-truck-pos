@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Globe, ShoppingCart, List } from "lucide-react";
 import { CashRegisterStatus } from "@/components/cash-register-status";
 import "./globals.css";
+import { CashRegisterManager } from "@/components/cash-register-manager";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,20 +37,29 @@ export default function RootLayout({
             <div className="flex items-center gap-4">
               <Link href="/" className="flex items-center gap-2">
                 <Globe />
-                <h1 className="text-lg font-semibold">Food Truck POS</h1>
+                <h1 className="text-lg font-semibold">Dato del Maestro</h1>
               </Link>
             </div>
             <nav className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-black">
+              <Link
+                href="/"
+                className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-black"
+              >
                 <ShoppingCart className="h-5 w-5" />
                 <span>POS</span>
               </Link>
-              <Link href="/sales" className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-black">
+              <Link
+                href="/sales"
+                className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-black"
+              >
                 <List className="h-5 w-5" />
                 <span>Ventas</span>
               </Link>
             </nav>
-            <CashRegisterStatus />
+            <div className="space-x-2">
+              <CashRegisterStatus />
+              <CashRegisterManager />
+            </div>
           </header>
           <main>{children}</main>
           <PosNameSetup />

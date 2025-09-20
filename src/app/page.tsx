@@ -10,7 +10,6 @@ export default async function POSPage() {
     const initialProducts = await getProducts();
     return (
       <div className="p-4">
-        <CashRegisterManager />
         <POSPageContainer initialProducts={initialProducts} />
       </div>
     );

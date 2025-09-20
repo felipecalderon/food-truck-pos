@@ -6,6 +6,10 @@ Este documento proporciona un análisis detallado de la estructura y tecnología
 
 El proyecto es una aplicación web de **Punto de Venta (POS)** construida con Next.js y TypeScript. Su propósito es permitir la gestión de un carrito de compras, la visualización de productos y el seguimiento de las ventas. Utiliza una arquitectura moderna basada en componentes y Server Actions para la lógica de backend.
 
+## Metodologías
+
+Ser siempre analista antes de cualquier cambio, no dejar comentarios sin sentido, en caso de necesitar comentarios transformar todo el componente o función con JSDocs en español, enfocarse en las diferencias entre client y server components, pensar siempre en la modularización y clean arquitecture de la estructura actual.
+
 ## Tecnologías Principales
 
 - **Framework**: [Next.js](https://nextjs.org/) (con App Router)
@@ -21,29 +25,35 @@ El proyecto es una aplicación web de **Punto de Venta (POS)** construida con Ne
 A continuación se detalla la función de los directorios y archivos más importantes dentro de `src/`:
 
 - **`src/app/`**: Corazón de la aplicación Next.js (App Router).
+
   - `layout.tsx`: Layout principal que envuelve todas las páginas.
   - `page.tsx`: Página de inicio de la aplicación, probablemente la interfaz principal del POS.
   - `sales/page.tsx`: Página dedicada a mostrar la lista de ventas realizadas.
   - `total/page.tsx`: Página para mostrar un resumen o total de las ventas.
 
 - **`src/actions/`**: Contiene los [Next.js Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+
   - `products.ts`: Funciones para obtener, crear o modificar productos.
   - `sales.ts`: Funciones para procesar y registrar las ventas.
 
 - **`src/components/`**: Componentes de React que forman la interfaz de usuario.
+
   - `ui/`: Componentes de bajo nivel y reutilizables (Button, Card, Input, etc.).
   - `product-list.tsx`: Muestra la lista de productos disponibles.
   - `shopping-cart.tsx`: Gestiona y muestra los ítems en el carrito de compras.
   - `sales-list.tsx`: Muestra el historial de ventas.
 
 - **`src/lib/`**: Librerías, helpers y configuraciones de servicios externos.
+
   - `redis.ts`: Lógica para conectar y comunicarse con la base de datos Redis.
   - `utils.ts`: Funciones de utilidad generales para el proyecto.
 
 - **`src/stores/`**: Gestión de estado del lado del cliente.
+
   - `cart.ts`: Probablemente un store (usando Zustand, Jotai o React Context) para gestionar el estado del carrito en tiempo real en el navegador.
 
 - **`src/types/`**: Definiciones de tipos de TypeScript para los modelos de datos.
+
   - `cart.ts`, `product.ts`, `sale.ts`: Interfaces que definen la estructura de los datos, asegurando la consistencia en todo el proyecto.
 
 - **`public/`**: Almacena todos los activos estáticos como imágenes (`.svg`) y otros archivos que se sirven directamente al cliente.
@@ -63,9 +73,9 @@ Se ha implementado un sistema integral para la gestión de apertura y cierre de 
 
 - **`src/types/cash-register.ts`**: Define la interfaz `CashRegisterSession`, que es el modelo de datos para una sesión de caja.
 - **`src/actions/cash-register.ts`**: Contiene las Server Actions para la lógica de negocio:
-    - `openCashRegister`: Inicia una nueva sesión.
-    - `getCurrentSession`: Obtiene el estado de la caja actual.
-    - `closeCashRegister`: Finaliza la sesión y la archiva.
+  - `openCashRegister`: Inicia una nueva sesión.
+  - `getCurrentSession`: Obtiene el estado de la caja actual.
+  - `closeCashRegister`: Finaliza la sesión y la archiva.
 - **`src/actions/sales.ts` (Modificado)**: La acción `createSaleInRedis` fue actualizada para verificar el estado de la caja y registrar el monto de la venta en la sesión activa.
 - **`src/components/cash-register-manager.tsx`**: Componente de UI que renderiza los botones "Abrir/Cerrar Caja" y gestiona los diálogos para la interacción del usuario.
 - **`src/components/cash-register-status.tsx`**: Componente de servidor que se muestra en el `header` y refleja el estado actual de la caja ("Abierta" o "Cerrada").

@@ -8,9 +8,9 @@ export async function CashRegisterStatus() {
     return <Badge variant="destructive">Caja Cerrada</Badge>;
   }
 
-  const formattedBalance = new Intl.NumberFormat("es-AR", {
+  const formattedBalance = new Intl.NumberFormat("es-CL", {
     style: "currency",
-    currency: "ARS",
+    currency: "CLP",
   }).format(session.openingBalance);
 
   return (
