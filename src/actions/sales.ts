@@ -8,9 +8,62 @@ import path from "node:path";
 import redis from "@/lib/redis";
 import { randomUUID } from "crypto";
 import { formatCurrency } from "@/lib/utils";
+import { isToday, isThisWeek, isThisMonth } from "date-fns";
 
 const POS_NAME = "main-pos"; // TODO: Esto debería ser dinámico
 const CURRENT_SESSION_KEY = `cash-register:${POS_NAME}:current`;
+
+export async function getAllSales(searchParams: {
+  range?: string;
+  from?: string;
+  to?: string;
+}): Promise<Sale[]> {
+  try {
+    const saleKeys = await redis.keys("sale:*");
+    if (saleKeys.length === 0) {
+      return [];
+    }
+
+    const salesJson = await redis.mget(saleKeys);
+    let sales = salesJson
+      .map((saleJson) => {
+        try {
+          return saleJson ? (JSON.parse(saleJson) as Sale) : null;
+        } catch (e) {
+          console.error("Failed to parse sale JSON:", e);
+          return null;
+        }
+      })
+      .filter((sale): sale is Sale => sale !== null);
+
+    const { range, from, to } = searchParams;
+
+    if (range) {
+      const now = new Date();
+      if (range === "today") {
+        sales = sales.filter((sale) => isToday(new Date(sale.date)));
+      } else if (range === "week") {
+        sales = sales.filter((sale) => isThisWeek(new Date(sale.date)));
+      } else if (range === "month") {
+        sales = sales.filter((sale) => isThisMonth(new Date(sale.date)));
+      }
+    } else if (from && to) {
+      const startDate = new Date(from);
+      const endDate = new Date(to);
+      sales = sales.filter((sale) => {
+        const saleDate = new Date(sale.date);
+        return saleDate >= startDate && saleDate <= endDate;
+      });
+    }
+
+    return sales.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  } catch (error) {
+    console.error("Error fetching sales from Redis:", error);
+    return [];
+  }
+}
 
 export async function createSaleInRedis(
   cart: CartItem[],
@@ -105,6 +158,64 @@ export async function getSalesByPosName(posName: string): Promise<Sale[]> {
   } catch (error) {
     console.error(`Error fetching sales for ${posName}:`, error);
     return [];
+  }
+}
+
+export async function updateSale(
+  saleId: string,
+  comment: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const saleKey = `sale:${saleId}`;
+    const saleJSON = await redis.get(saleKey);
+    if (!saleJSON) {
+      return { success: false, message: "La venta no existe." };
+    }
+    const sale = JSON.parse(saleJSON) as Sale;
+
+    const updatedSale: Sale = {
+      ...sale,
+      comment,
+    };
+
+    await redis.set(saleKey, JSON.stringify(updatedSale));
+
+    return { success: true, message: "Venta actualizada con éxito." };
+  } catch (error) {
+    console.error("Error updating sale:", error);
+    return { success: false, message: "Error al actualizar la venta." };
+  }
+}
+
+export async function deleteSale(
+  saleId: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const saleKey = `sale:${saleId}`;
+    const saleJSON = await redis.get(saleKey);
+    if (!saleJSON) {
+      return { success: false, message: "La venta no existe." };
+    }
+    const sale = JSON.parse(saleJSON) as Sale;
+
+    await redis.del(saleKey);
+    await redis.srem(`pos:${sale.posName}:sales`, saleId);
+
+    // Update cash register session
+    const sessionData = await redis.get(CURRENT_SESSION_KEY);
+    if (sessionData) {
+      const session = JSON.parse(sessionData as string) as CashRegisterSession;
+      const updatedSession: CashRegisterSession = {
+        ...session,
+        calculatedSales: session.calculatedSales - sale.total,
+      };
+      await redis.set(CURRENT_SESSION_KEY, JSON.stringify(updatedSession));
+    }
+
+    return { success: true, message: "Venta eliminada con éxito." };
+  } catch (error) {
+    console.error("Error deleting sale:", error);
+    return { success: false, message: "Error al eliminar la venta." };
   }
 }
 

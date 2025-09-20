@@ -1,54 +1,30 @@
-import redis from "@/lib/redis";
-import type { Sale } from "@/types/sale";
 import { TotalSalesList } from "@/components/total-sales-list";
+import { TotalSalesFilter } from "@/components/total-sales-filter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAllSales } from "@/actions/sales";
+import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-async function getAllSales(): Promise<Sale[]> {
-  try {
-    const saleKeys = await redis.keys("sale:*");
-    if (saleKeys.length === 0) {
-      return [];
-    }
-
-    const salesJson = await redis.mget(saleKeys);
-    const sales = salesJson
-      .map((saleJson) => {
-        try {
-          return saleJson ? (JSON.parse(saleJson) as Sale) : null;
-        } catch (e) {
-          console.error("Failed to parse sale JSON:", e);
-          return null;
-        }
-      })
-      .filter((sale): sale is Sale => sale !== null)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Ordenar por fecha descendente
-
-    return sales;
-  } catch (error) {
-    console.error("Error fetching sales from Redis:", error);
-    // En caso de error (ej. Redis no disponible), devolver un array vacío
-    // para no romper la renderización de la página.
-    return [];
-  }
+interface TotalSalesPageProps {
+  searchParams: Promise<{
+    range?: string;
+    from?: string;
+    to?: string;
+  }>;
 }
 
-export default async function TotalSalesPage() {
-  const sales = await getAllSales();
+export default async function TotalSalesPage({
+  searchParams,
+}: TotalSalesPageProps) {
+  const params = await searchParams;
+  const sales = await getAllSales(params);
 
   const totalRevenue = sales.reduce((acc, sale) => acc + sale.total, 0);
   const totalSalesCount = sales.length;
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("es-CL", {
-      style: "currency",
-      currency: "CLP",
-    }).format(amount);
-  };
-
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-6">
       <h1 className="text-3xl font-bold mb-6">
         Ventas Totales (Todos los POS)
       </h1>
@@ -110,6 +86,8 @@ export default async function TotalSalesPage() {
           </CardContent>
         </Card>
       </div>
+
+      <TotalSalesFilter />
 
       <Card>
         <CardHeader>

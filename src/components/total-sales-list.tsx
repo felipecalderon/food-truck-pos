@@ -18,18 +18,36 @@ import {
 } from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { deleteSale } from "@/actions/sales";
+import { EditSaleDialog } from "./edit-sale-dialog";
+import { Button } from "./ui/button";
+
 interface TotalSalesListProps {
   sales: Sale[];
 }
 
 export function TotalSalesList({ sales }: TotalSalesListProps) {
+  const router = useRouter();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   if (sales.length === 0) {
     return (
       <div className="text-center text-gray-500 py-16">
-        <p>No hay ventas registradas en Redis.</p>
+        <p>No hay ventas registradas en esta fecha.</p>
       </div>
     );
   }
+
+  const handleDelete = async (saleId: string) => {
+    if (confirm("¿Estás seguro de que quieres eliminar esta venta?")) {
+      setDeletingId(saleId);
+      await deleteSale(saleId);
+      setDeletingId(null);
+      router.refresh();
+    }
+  };
 
   return (
     <Table>
@@ -40,6 +58,7 @@ export function TotalSalesList({ sales }: TotalSalesListProps) {
           <TableHead>Fecha</TableHead>
           <TableHead>Productos</TableHead>
           <TableHead className="text-right">Total</TableHead>
+          <TableHead>Acciones</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -62,6 +81,19 @@ export function TotalSalesList({ sales }: TotalSalesListProps) {
                   </TableCell>
                   <TableCell className="text-right font-semibold">
                     {formatCurrency(sale.total)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-2">
+                      <EditSaleDialog sale={sale} />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(sale.id)}
+                        disabled={deletingId === sale.id}
+                      >
+                        {deletingId === sale.id ? "Eliminando..." : "Eliminar"}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               </TooltipTrigger>
