@@ -11,17 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 
 interface ProductListProps {
   products: Product[];
 }
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-  }).format(amount);
-};
 
 export function ProductList({ products }: ProductListProps) {
   const { addToCart } = useCartStore();

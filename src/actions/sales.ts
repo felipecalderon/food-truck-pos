@@ -1,24 +1,17 @@
 "use server";
 
 import type { CartItem } from "@/types/cart";
-import { Sale } from "@/types/sale";
+import { PaymentMethod, Sale } from "@/types/sale";
 import fs from "node:fs/promises";
 import path from "node:path";
 import redis from "@/lib/redis";
 import { randomUUID } from "crypto";
-
-// Helper para formatear la moneda
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-  }).format(amount);
-};
+import { formatCurrency } from "@/lib/utils";
 
 export async function createSaleInRedis(
   cart: CartItem[],
   total: number,
-  paymentMethod: Sale['paymentMethod'],
+  paymentMethod: PaymentMethod,
   amountPaid: number,
   change: number,
   posName: string,
@@ -42,7 +35,8 @@ export async function createSaleInRedis(
 
     // Guardar la venta en Redis
     // Usamos una transacción para asegurar que ambas operaciones (guardar venta y añadir al índice) se completen
-    await redis.multi()
+    await redis
+      .multi()
       .set(`sale:${saleId}`, JSON.stringify(sale))
       .sadd(`pos:${posName}:sales`, saleId)
       .exec();
@@ -65,7 +59,7 @@ export async function getSalesByPosName(posName: string): Promise<Sale[]> {
       return [];
     }
 
-    const saleKeys = saleIds.map(id => `sale:${id}`);
+    const saleKeys = saleIds.map((id) => `sale:${id}`);
     const salesJson = await redis.mget(saleKeys);
 
     const sales = salesJson
@@ -89,7 +83,7 @@ export async function getSalesByPosName(posName: string): Promise<Sale[]> {
 export async function saveSale(
   cart: CartItem[],
   total: number,
-  paymentMethod: string,
+  paymentMethod: PaymentMethod,
   amountPaid: number,
   change: number
 ): Promise<{ success: boolean; message: string }> {

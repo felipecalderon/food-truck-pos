@@ -15,14 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
+import { formatCurrency } from "@/lib/utils";
 
 export function ShoppingCart() {
   const {

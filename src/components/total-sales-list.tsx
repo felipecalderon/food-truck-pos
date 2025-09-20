@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import type { Sale } from '@/types/sale';
+import type { Sale } from "@/types/sale";
 import {
   Table,
   TableBody,
@@ -8,31 +8,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
-  }).format(amount);
-};
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleString('es-CL', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface TotalSalesListProps {
   sales: Sale[];

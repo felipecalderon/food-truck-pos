@@ -1,28 +1,17 @@
 "use server";
 
 import { BACKEND_URL } from "@/common/enviroments";
-import type { Product } from "@/types/product";
-
-interface RawProduct {
-  sku: number;
-  nombre: string;
-  categoria: string;
-  precioNeto: string;
-  precioIva: string;
-  precioOferta: string;
-  stock: string;
-  activo: string;
-}
+import type { Product, RawProduct } from "@/types/product";
 
 export async function getProducts(): Promise<Product[]> {
   try {
     const url = `${BACKEND_URL}/productos`;
     const response = await fetch(url, {
-      cache: "no-store", // Deshabilita el cache para obtener siempre datos frescos
+      cache: "no-store",
     });
 
     if (!response.ok) {
-      throw new Error("Failed to fetch products from backend");
+      throw new Error("Falló la API del server Geo");
     }
 
     const rawProducts: RawProduct[] = await response.json();

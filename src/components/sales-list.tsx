@@ -18,18 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-  }).format(amount);
-};
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleString("es-CL");
-};
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface SalesListProps {
   sales: Sale[];
