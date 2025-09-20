@@ -1,7 +1,7 @@
 import { getProducts } from "@/actions/products";
-import Error from "@/components/global-error";
-import { CashRegisterManager } from "@/components/cash-register-manager";
+import ErrorComponent from "@/components/global-error";
 import { POSPageContainer } from "@/components/pos-page-container";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,8 @@ export default async function POSPage() {
     );
   } catch (error) {
     console.log(error);
-    return Error;
+    return (
+      <ErrorComponent error={error as Error} reset={() => redirect("/")} />
+    );
   }
 }
