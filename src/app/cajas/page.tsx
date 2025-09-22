@@ -3,8 +3,13 @@ import { getAllCashRegisterSessions } from "@/actions/cash-register";
 import { CashRegisterList } from "@/components/cash-register-list";
 import { TotalSalesFilter } from "@/components/total-sales-filter";
 
-export default async function CajasPage({ searchParams }: { searchParams: { range?: string; from?: string; to?: string } }) {
-  const sessions = await getAllCashRegisterSessions(searchParams);
+export default async function CajasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
+}) {
+  const params = await searchParams;
+  const sessions = await getAllCashRegisterSessions(params);
 
   return (
     <div className="container mx-auto py-10 px-6">
