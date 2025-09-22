@@ -59,6 +59,15 @@ export function CashRegisterManager() {
     window.location.reload();
   };
 
+  const handlePrepareCloseRegister = async () => {
+    if (!posName) return;
+    setIsLoading(true);
+    const currentSession = await getCurrentSession(posName);
+    setSession(currentSession);
+    setIsLoading(false);
+    setIsClosing(true); // Abre el diálogo después de tener datos frescos
+  };
+
   const handleCloseRegister = async () => {
     if (!posName || !session) return; // No se puede cerrar la caja sin un nombre de POS o sin sesión
     const balance = parseFloat(closingBalance);
@@ -79,11 +88,14 @@ export function CashRegisterManager() {
     const expectedInDrawer = session.openingBalance + session.calculatedSales;
     return (
       <Dialog open={isClosing} onOpenChange={setIsClosing}>
-        <DialogTrigger asChild>
-          <Button size="sm" variant="destructive">
-            Cerrar Caja
-          </Button>
-        </DialogTrigger>
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={handlePrepareCloseRegister}
+          disabled={isLoading}
+        >
+          {isLoading ? "Cargando..." : "Cerrar Caja"}
+        </Button>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Resumen y Cierre de Caja</DialogTitle>
