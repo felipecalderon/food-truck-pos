@@ -4,6 +4,7 @@ export type PaymentMethod = "Efectivo" | "Debito" | "Credito";
 
 export interface Sale {
   id: string; // ID único de la venta
+  sessionId: string; // ID de la sesión de caja a la que pertenece la venta
   posName: string; // Nombre del POS que generó la venta
   items: CartItem[];
   total: number;

@@ -28,35 +28,36 @@ Los componentes de cliente se comunican con server actions usando en el componen
 
 A continuación se detalla la función de los directorios y archivos más importantes dentro de `src/`:
 
-- **`src/app/`**: Corazón de la aplicación Next.js (App Router).
+- **`/app/`**: Corazón de la aplicación Next.js (App Router).
 
   - `layout.tsx`: Layout principal que envuelve todas las páginas.
-  - `page.tsx`: Página de inicio de la aplicación, probablemente la interfaz principal del POS.
-  - `sales/page.tsx`: Página dedicada a mostrar la lista de ventas realizadas.
-  - `total/page.tsx`: Página para mostrar un resumen o total de las ventas.
+  - `page.tsx`: Página de inicio de la aplicación, interfaz principal del POS.
+  - `sales/page.tsx`: Página que muestra la lista de ventas realizadas.
+  - `total/page.tsx`: Página que muestra un resumen de las ventas.
+  - `cajas/page.tsx`: Página que muestra un resumen de las cajas.
 
-- **`src/actions/`**: Contiene los [Next.js Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+- **`/actions/`**: Contiene los [Next.js Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
   - `products.ts`: Funciones para obtener, crear o modificar productos.
   - `sales.ts`: Funciones para procesar y registrar las ventas.
 
-- **`src/components/`**: Componentes de React que forman la interfaz de usuario.
+- **`/components/`**: Componentes de React que forman la interfaz de usuario.
 
   - `ui/`: Componentes de bajo nivel y reutilizables (Button, Card, Input, etc.).
   - `product-list.tsx`: Muestra la lista de productos disponibles.
   - `shopping-cart.tsx`: Gestiona y muestra los ítems en el carrito de compras.
   - `sales-list.tsx`: Muestra el historial de ventas.
 
-- **`src/lib/`**: Librerías, helpers y configuraciones de servicios externos.
+- **`/lib/`**: Librerías, helpers y configuraciones de servicios externos.
 
   - `redis.ts`: Lógica para conectar y comunicarse con la base de datos Redis.
-  - `utils.ts`: Funciones de utilidad generales para el proyecto.
+  - `utils.ts`: Funciones de utilidad sencillas y generales para el proyecto.
 
-- **`src/stores/`**: Gestión de estado del lado del cliente.
+- **`/stores/`**: Gestión de estado del lado del cliente.
 
   - `cart.ts`: Probablemente un store (usando Zustand, Jotai o React Context) para gestionar el estado del carrito en tiempo real en el navegador.
 
-- **`src/types/`**: Definiciones de tipos de TypeScript para los modelos de datos.
+- **`/types/`**: Definiciones de tipos de TypeScript para los modelos de datos.
 
   - `cart.ts`, `product.ts`, `sale.ts`: Interfaces que definen la estructura de los datos, asegurando la consistencia en todo el proyecto.
 

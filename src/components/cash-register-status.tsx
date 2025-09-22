@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getCurrentSession } from "@/actions/cash-register";
 import { Badge } from "./ui/badge";
 import { CashRegisterSession } from "@/types/cash-register";
@@ -10,23 +10,34 @@ export function CashRegisterStatus() {
   const [isLoading, setIsLoading] = useState(true);
   const [posName, setPosName] = useState<string | null>(null);
 
+  const fetchSession = useCallback(async (name: string) => {
+    setIsLoading(true);
+    const currentSession = await getCurrentSession(name);
+    setSession(currentSession);
+    setIsLoading(false);
+  }, []);
+
   useEffect(() => {
     const storedPosName = localStorage.getItem("pos_name");
     if (storedPosName) {
       setPosName(storedPosName);
+      fetchSession(storedPosName);
     } else {
       setIsLoading(false);
-      return;
     }
 
-    const fetchSession = async () => {
-      setIsLoading(true);
-      const currentSession = await getCurrentSession(storedPosName);
-      setSession(currentSession);
-      setIsLoading(false);
+    const handleSaleCompleted = () => {
+      if (storedPosName) {
+        fetchSession(storedPosName);
+      }
     };
-    fetchSession();
-  }, []);
+
+    window.addEventListener("sale-completed", handleSaleCompleted);
+
+    return () => {
+      window.removeEventListener("sale-completed", handleSaleCompleted);
+    };
+  }, [fetchSession]);
 
   if (isLoading) {
     return <Badge variant="secondary">Cargando estado...</Badge>;
@@ -40,14 +51,15 @@ export function CashRegisterStatus() {
     return <Badge variant="destructive">Caja Cerrada</Badge>;
   }
 
+  const currentBalance = session.openingBalance + session.calculatedSales;
   const formattedBalance = new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",
-  }).format(session.openingBalance);
+  }).format(currentBalance);
 
   return (
     <Badge variant="secondary">
-      Caja Abierta | Saldo Inicial: {formattedBalance}
+      Caja Abierta | Saldo en caja: {formattedBalance}
     </Badge>
   );
 }

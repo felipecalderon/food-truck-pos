@@ -43,6 +43,7 @@ export function ShoppingCart() {
     const result = await saveSale(posName);
 
     if (result.success) {
+      window.dispatchEvent(new Event("sale-completed"));
       alert("Venta guardada con éxito");
     } else {
       alert(`Hubo un error al guardar la venta: ${result.message}`);

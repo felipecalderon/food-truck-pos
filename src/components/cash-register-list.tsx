@@ -1,4 +1,7 @@
-import React from "react";
+"use client";
+
+import React, { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CashRegisterSession } from "@/types/cash-register";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -10,12 +13,35 @@ import {
   TableRow,
 } from "./ui/table";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { deleteCashRegister } from "@/actions/cash-register";
 
 interface CashRegisterListProps {
   sessions: CashRegisterSession[];
 }
 
 export function CashRegisterList({ sessions }: CashRegisterListProps) {
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  const handleDelete = (e: React.MouseEvent, sessionId: string, posName: string) => {
+    e.stopPropagation(); // Evita que el evento de clic se propague a la fila
+    if (window.confirm("¿Estás seguro de que quieres eliminar esta sesión de caja? Esta acción no se puede deshacer.")) {
+      startTransition(async () => {
+        const result = await deleteCashRegister(sessionId, posName);
+        if (result.success) {
+          router.refresh();
+        } else {
+          alert(result.message);
+        }
+      });
+    }
+  };
+
+  const handleRowClick = (sessionId: string) => {
+    router.push(`/cajas/${sessionId}`);
+  };
+
   if (sessions.length === 0) {
     return <p>No hay sesiones de caja registradas.</p>;
   }
@@ -32,11 +58,12 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
           <TableHead>Cierre</TableHead>
           <TableHead>Saldo Final</TableHead>
           <TableHead>Diferencia</TableHead>
+          <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {sessions.map((session) => (
-          <TableRow key={session.id}>
+          <TableRow key={session.id} onClick={() => handleRowClick(session.id)} className="cursor-pointer">
             <TableCell className="font-medium">{session.posName}</TableCell>
             <TableCell>
               <Badge variant={session.status === "OPEN" ? "default" : "destructive"}>
@@ -62,6 +89,16 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
               {session.difference !== undefined
                 ? formatCurrency(session.difference)
                 : "N/A"}
+            </TableCell>
+            <TableCell className="text-right">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={(e) => handleDelete(e, session.id, session.posName)}
+                disabled={isPending}
+              >
+                {isPending ? "Eliminando..." : "Eliminar"}
+              </Button>
             </TableCell>
           </TableRow>
         ))}

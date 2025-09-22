@@ -11,6 +11,8 @@ interface CartState {
   amountPaid: number;
   comment: string;
   isSaving: boolean;
+  isCashRegisterOpen: boolean;
+  setCashRegisterOpen: (isOpen: boolean) => void;
   addToCart: (product: Product) => void;
   updateQuantity: (sku: number, quantity: number) => void;
   clearCart: () => void;
@@ -30,8 +32,15 @@ export const useCartStore = create<CartState>((set, get) => ({
   amountPaid: 0,
   comment: "",
   isSaving: false,
+  isCashRegisterOpen: false,
+
+  setCashRegisterOpen: (isOpen) => set({ isCashRegisterOpen: isOpen }),
 
   addToCart: (product) => {
+    if (!get().isCashRegisterOpen) {
+      alert("La caja está cerrada. No se pueden añadir productos.");
+      return;
+    }
     set((state) => {
       const existingItem = state.items.find((item) => item.sku === product.sku);
       if (existingItem) {

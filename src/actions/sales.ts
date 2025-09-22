@@ -10,6 +10,7 @@ import redis from "@/lib/redis";
 import { randomUUID } from "crypto";
 import { formatCurrency } from "@/lib/utils";
 import { isToday, isThisWeek, isThisMonth } from "date-fns";
+import { revalidatePath } from "next/cache";
 
 const POS_NAME_CONSTANT = "main-pos"; // TODO: Esto debería ser dinámico
 
@@ -95,6 +96,7 @@ export async function createSaleInRedis(
 
     const sale: Sale = {
       id: saleId,
+      sessionId: session.id,
       posName,
       items: cart,
       total,
@@ -105,7 +107,11 @@ export async function createSaleInRedis(
       comment,
     };
 
-    const newCalculatedSales = session.calculatedSales + total;
+    const isCashSale = paymentMethod === "Efectivo";
+    const newCalculatedSales = isCashSale
+      ? session.calculatedSales + total
+      : session.calculatedSales;
+
     const updatedSession: CashRegisterSession = {
       ...session,
       calculatedSales: newCalculatedSales,
@@ -115,8 +121,11 @@ export async function createSaleInRedis(
       .multi()
       .set(`sale:${saleId}`, JSON.stringify(sale))
       .sadd(`pos:${posName}:sales`, saleId)
+      .sadd(`session-sales:${session.id}`, saleId)
       .set(CURRENT_SESSION_KEY, JSON.stringify(updatedSession))
       .exec();
+
+    revalidatePath("/");
 
     console.log(`Venta ${saleId} desde ${posName} guardada en Redis.`);
     return { success: true, message: "Venta guardada con éxito en Redis." };
@@ -194,17 +203,24 @@ export async function deleteSale(
     }
     const sale = JSON.parse(saleJSON) as Sale;
 
-    await redis.del(saleKey);
-    await redis.srem(`pos:${sale.posName}:sales`, saleId);
+    const multi = redis.multi();
+    multi.del(saleKey);
+    multi.srem(`pos:${sale.posName}:sales`, saleId);
+    if (sale.sessionId) {
+      multi.srem(`session-sales:${sale.sessionId}`, saleId);
+    }
+
     const CURRENT_SESSION_KEY = `cash-register:${sale.posName}:current`;
     const session = await getCurrentSession(sale.posName);
-    if (session) {
+    if (session && session.id === sale.sessionId) {
       const updatedSession: CashRegisterSession = {
         ...session,
         calculatedSales: session.calculatedSales - sale.total,
       };
-      await redis.set(CURRENT_SESSION_KEY, JSON.stringify(updatedSession));
+      multi.set(CURRENT_SESSION_KEY, JSON.stringify(updatedSession));
     }
+
+    await multi.exec();
 
     return { success: true, message: "Venta eliminada con éxito." };
   } catch (error) {

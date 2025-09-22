@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Product } from "@/types/product";
 import { ProductList } from "./product-list";
 import { ShoppingCart } from "./shopping-cart";
 import { Input } from "@/components/ui/input";
+import { useCartStore } from "@/stores/cart";
+import { getCurrentSession } from "@/actions/cash-register";
 
 interface POSPageContainerProps {
   initialProducts: Product[];
@@ -13,6 +15,21 @@ interface POSPageContainerProps {
 export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
   const [products] = useState<Product[]>(initialProducts);
   const [searchTerm, setSearchTerm] = useState("");
+  const [posName, setPosName] = useState<string | null>(null);
+  const { setCashRegisterOpen } = useCartStore();
+
+  useEffect(() => {
+    const name = localStorage.getItem("pos_name");
+    setPosName(name);
+  }, []);
+
+  useEffect(() => {
+    if (posName) {
+      getCurrentSession(posName).then((session) => {
+        setCashRegisterOpen(session?.status === "OPEN");
+      });
+    }
+  }, [posName, setCashRegisterOpen]);
 
   const filteredProducts = useMemo(() => {
     if (!searchTerm) return products;
