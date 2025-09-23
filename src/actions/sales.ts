@@ -74,7 +74,7 @@ export async function createSaleInRedis(
   change: number,
   posName: string,
   comment?: string
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; sale?: Sale }> {
   const session = await getCurrentSession(posName);
   if (!session) {
     return {
@@ -128,7 +128,7 @@ export async function createSaleInRedis(
     revalidatePath("/");
 
     console.log(`Venta ${saleId} desde ${posName} guardada en Redis.`);
-    return { success: true, message: "Venta guardada con éxito en Redis." };
+    return { success: true, message: "Venta guardada con éxito en Redis.", sale };
   } catch (error) {
     console.error("Error al guardar la venta en Redis:", error);
     return {

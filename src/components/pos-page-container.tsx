@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useCartStore } from "@/stores/cart";
 import { useProductStore } from "@/stores/products";
 import { getCurrentSession } from "@/actions/cash-register";
+import { SaleReceipt } from "./sale-receipt";
 
 interface POSPageContainerProps {
   initialProducts: Product[];
@@ -17,7 +18,7 @@ export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
   const { products, setProducts } = useProductStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [posName, setPosName] = useState<string | null>(null);
-  const { setCashRegisterOpen } = useCartStore();
+  const { setCashRegisterOpen, showReceipt } = useCartStore();
 
   useEffect(() => {
     setProducts(initialProducts);
@@ -66,6 +67,7 @@ export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
 
   return (
     <main className="grid md:grid-cols-2 gap-8 p-6">
+      {showReceipt && <SaleReceipt />}
       <ShoppingCart />
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">

@@ -4,6 +4,7 @@ import type { Product } from "@/types/product";
 import type { Order } from "@/types/order";
 import { createSaleInRedis } from "@/actions/sales";
 import { useOrderStore } from "./orders";
+import { Sale } from "@/types/sale";
 
 type PaymentMethod = "Efectivo" | "Debito" | "Credito";
 
@@ -15,17 +16,20 @@ interface CartState {
   isSaving: boolean;
   isCashRegisterOpen: boolean;
   loadedOrderId: string | null;
+  completedSale: Sale | null;
+  showReceipt: boolean;
   setCashRegisterOpen: (isOpen: boolean) => void;
   addToCart: (product: Product) => void;
   updateQuantity: (sku: number, quantity: number) => void;
   clearCart: () => void;
+  closeReceipt: () => void;
   loadOrder: (order: Order) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   setAmountPaid: (amount: number) => void;
   setComment: (comment: string) => void;
   saveSale: (
     posName: string
-  ) => Promise<{ success: boolean; message: string }>;
+  ) => Promise<{ success: boolean; message: string; sale?: Sale }>;
   getCartTotal: () => number;
   getChange: () => number;
 }
@@ -38,6 +42,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   isSaving: false,
   isCashRegisterOpen: false,
   loadedOrderId: null,
+  completedSale: null,
+  showReceipt: false,
 
   setCashRegisterOpen: (isOpen) => set({ isCashRegisterOpen: isOpen }),
 
@@ -75,6 +81,11 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   clearCart: () =>
     set({ items: [], amountPaid: 0, comment: "", loadedOrderId: null }),
+
+  closeReceipt: () => {
+    set({ completedSale: null, showReceipt: false });
+    get().clearCart();
+  },
 
   loadOrder: (order) => {
     if (get().items.length > 0) {
@@ -114,7 +125,6 @@ export const useCartStore = create<CartState>((set, get) => ({
       comment,
       getCartTotal,
       getChange,
-      clearCart,
       loadedOrderId,
     } = get();
     const total = getCartTotal();
@@ -131,11 +141,11 @@ export const useCartStore = create<CartState>((set, get) => ({
         comment
       );
 
-      if (result.success) {
+      if (result.success && result.sale) {
         if (loadedOrderId) {
           useOrderStore.getState().updateOrderStatus(loadedOrderId, "PAGADO");
         }
-        clearCart();
+        set({ completedSale: result.sale, showReceipt: true });
       }
       return result;
     } catch (error) {
