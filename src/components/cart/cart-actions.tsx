@@ -6,9 +6,17 @@ interface CartActionsProps {
   isSaving: boolean;
   isSaleDisabled: boolean;
   handleSaveSale: () => void;
+  isOrderLoaded: boolean;
 }
 
-export function CartActions({ isSaving, isSaleDisabled, handleSaveSale }: CartActionsProps) {
+export function CartActions({
+  isSaving,
+  isSaleDisabled,
+  handleSaveSale,
+  isOrderLoaded,
+}: CartActionsProps) {
+  const buttonText = isOrderLoaded ? "Finalizar Venta" : "Guardar Pedido";
+
   return (
     <Button
       className="w-full transition-all hover:scale-105 hover:bg-primary/90"
@@ -16,7 +24,7 @@ export function CartActions({ isSaving, isSaleDisabled, handleSaveSale }: CartAc
       disabled={isSaleDisabled}
       onClick={handleSaveSale}
     >
-      {isSaving ? "Guardando..." : "Finalizar Venta"}
+      {isSaving ? "Guardando..." : buttonText}
     </Button>
   );
 }

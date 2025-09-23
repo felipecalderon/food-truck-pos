@@ -1,6 +1,7 @@
 "use client";
 
 import { useCartStore } from "@/stores/cart";
+import { useOrderStore } from "@/stores/orders";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { CartItemsTable } from "./cart/cart-items-table";
 import { CartPayment } from "./cart/cart-payment";
@@ -14,41 +15,55 @@ export function ShoppingCart() {
     amountPaid,
     comment,
     isSaving,
+    loadedOrderId,
     updateQuantity,
     setPaymentMethod,
     setAmountPaid,
     setComment,
+    clearCart,
     saveSale,
     getCartTotal,
     getChange,
   } = useCartStore();
 
+  const { addOrder } = useOrderStore();
+
   const cartTotal = getCartTotal();
   const change = getChange();
+  const isOrderLoaded = loadedOrderId !== null;
 
-  const isSaleDisabled =
-    items.length === 0 ||
-    isSaving ||
-    (paymentMethod === "Efectivo" && amountPaid < Math.floor(cartTotal));
+  const handleSaveOrder = () => {
+    if (items.length === 0) return;
+
+    const newOrder = addOrder(items, cartTotal);
+    clearCart();
+    alert(`Pedido ${newOrder.name} guardado.`);
+    window.dispatchEvent(new Event("order-saved"));
+  };
 
   const handleSaveSale = async () => {
     const posName = localStorage.getItem("pos_name");
     if (!posName) {
-      alert(
-        "Error: No se ha configurado un nombre para este POS. Por favor, recargue la página."
-      );
+      alert("Error: No se ha configurado un nombre para este POS.");
       return;
     }
-
     const result = await saveSale(posName);
-
     if (result.success) {
       window.dispatchEvent(new Event("sale-completed"));
-      alert("Venta guardada con éxito");
+      alert("Venta finalizada con éxito.");
     } else {
-      alert(`Hubo un error al guardar la venta: ${result.message}`);
+      alert(`Hubo un error al finalizar la venta: ${result.message}`);
     }
   };
+
+  const mainAction = isOrderLoaded ? handleSaveSale : handleSaveOrder;
+
+  const isSaleDisabled =
+    items.length === 0 ||
+    isSaving ||
+    (isOrderLoaded &&
+      paymentMethod === "Efectivo" &&
+      amountPaid < Math.floor(cartTotal));
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,7 +74,7 @@ export function ShoppingCart() {
         <CardFooter className="flex flex-col gap-4 mt-4 p-4">
           <CartSummary cartTotal={cartTotal} change={change} />
 
-          {items.length > 0 && (
+          {isOrderLoaded && items.length > 0 && (
             <CartPayment
               paymentMethod={paymentMethod}
               amountPaid={amountPaid}
@@ -74,7 +89,8 @@ export function ShoppingCart() {
           <CartActions
             isSaving={isSaving}
             isSaleDisabled={isSaleDisabled}
-            handleSaveSale={handleSaveSale}
+            handleSaveSale={mainAction}
+            isOrderLoaded={isOrderLoaded}
           />
         </CardFooter>
       </Card>

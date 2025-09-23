@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import type { CartItem } from "@/types/cart";
-import { Product } from "@/types/product";
+import type { Product } from "@/types/product";
+import type { Order } from "@/types/order";
 import { createSaleInRedis } from "@/actions/sales";
+import { useOrderStore } from "./orders";
 
 type PaymentMethod = "Efectivo" | "Debito" | "Credito";
 
@@ -12,10 +14,12 @@ interface CartState {
   comment: string;
   isSaving: boolean;
   isCashRegisterOpen: boolean;
+  loadedOrderId: string | null;
   setCashRegisterOpen: (isOpen: boolean) => void;
   addToCart: (product: Product) => void;
   updateQuantity: (sku: number, quantity: number) => void;
   clearCart: () => void;
+  loadOrder: (order: Order) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   setAmountPaid: (amount: number) => void;
   setComment: (comment: string) => void;
@@ -33,6 +37,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   comment: "",
   isSaving: false,
   isCashRegisterOpen: false,
+  loadedOrderId: null,
 
   setCashRegisterOpen: (isOpen) => set({ isCashRegisterOpen: isOpen }),
 
@@ -68,7 +73,27 @@ export const useCartStore = create<CartState>((set, get) => ({
     });
   },
 
-  clearCart: () => set({ items: [], amountPaid: 0, comment: "" }),
+  clearCart: () =>
+    set({ items: [], amountPaid: 0, comment: "", loadedOrderId: null }),
+
+  loadOrder: (order) => {
+    if (get().items.length > 0) {
+      if (
+        !confirm(
+          "El carrito actual no está vacío. ¿Desea reemplazarlo con el pedido seleccionado?"
+        )
+      ) {
+        return;
+      }
+    }
+    set({
+      items: order.items,
+      loadedOrderId: order.id,
+      paymentMethod: "Efectivo",
+      amountPaid: 0,
+      comment: "",
+    });
+  },
 
   setPaymentMethod: (method) => {
     set({ paymentMethod: method });
@@ -90,6 +115,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       getCartTotal,
       getChange,
       clearCart,
+      loadedOrderId,
     } = get();
     const total = getCartTotal();
     const change = getChange();
@@ -106,6 +132,9 @@ export const useCartStore = create<CartState>((set, get) => ({
       );
 
       if (result.success) {
+        if (loadedOrderId) {
+          useOrderStore.getState().updateOrderStatus(loadedOrderId, "PAGADO");
+        }
         clearCart();
       }
       return result;

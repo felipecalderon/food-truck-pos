@@ -6,6 +6,7 @@ import { ProductList } from "./product-list";
 import { ShoppingCart } from "./shopping-cart";
 import { Input } from "@/components/ui/input";
 import { useCartStore } from "@/stores/cart";
+import { useProductStore } from "@/stores/products";
 import { getCurrentSession } from "@/actions/cash-register";
 
 interface POSPageContainerProps {
@@ -13,10 +14,14 @@ interface POSPageContainerProps {
 }
 
 export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
-  const [products] = useState<Product[]>(initialProducts);
+  const { products, setProducts } = useProductStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [posName, setPosName] = useState<string | null>(null);
   const { setCashRegisterOpen } = useCartStore();
+
+  useEffect(() => {
+    setProducts(initialProducts);
+  }, [initialProducts, setProducts]);
 
   useEffect(() => {
     const name = localStorage.getItem("pos_name");
@@ -48,8 +53,12 @@ export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
       const normalizedName = normalizeText(p.nombre);
       const normalizedSku = p.sku.toString().toLowerCase();
 
-      const nameMatches = searchKeywords.every((kw) => normalizedName.includes(kw));
-      const skuMatches = searchKeywords.every((kw) => normalizedSku.includes(kw));
+      const nameMatches = searchKeywords.every((kw) =>
+        normalizedName.includes(kw)
+      );
+      const skuMatches = searchKeywords.every((kw) =>
+        normalizedSku.includes(kw)
+      );
 
       return nameMatches || skuMatches;
     });
