@@ -33,11 +33,26 @@ export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
 
   const filteredProducts = useMemo(() => {
     if (!searchTerm) return products;
-    return products.filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.sku.toString().includes(searchTerm)
-    );
+
+    const normalizeText = (text: string) =>
+      text
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    const searchKeywords = normalizeText(searchTerm).split(" ").filter(Boolean);
+
+    if (!searchKeywords.length) return products;
+
+    return products.filter((p) => {
+      const normalizedName = normalizeText(p.nombre);
+      const normalizedSku = p.sku.toString().toLowerCase();
+
+      const nameMatches = searchKeywords.every((kw) => normalizedName.includes(kw));
+      const skuMatches = searchKeywords.every((kw) => normalizedSku.includes(kw));
+
+      return nameMatches || skuMatches;
+    });
   }, [products, searchTerm]);
 
   return (
