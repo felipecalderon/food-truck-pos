@@ -250,3 +250,75 @@ export async function deleteCashRegister(
     return { success: false, message: "Error al eliminar la sesión de caja." };
   }
 }
+
+export async function getCashRegisterSessionsByPosName(
+  posName: string,
+  searchParams: {
+    range?: string;
+    from?: string;
+    to?: string;
+  }
+): Promise<CashRegisterSession[]> {
+  try {
+    const CURRENT_SESSION_KEY = `cash-register:${posName}:current`;
+    const HISTORY_KEY = `cash-register:${posName}:history`;
+
+    let allSessions: CashRegisterSession[] = [];
+
+    // Obtener sesión actual
+    const currentSessionJson = await redis.get(CURRENT_SESSION_KEY);
+    if (currentSessionJson) {
+      try {
+        allSessions.push(JSON.parse(currentSessionJson) as CashRegisterSession);
+      } catch (error) {
+        console.error("Error parsing current session JSON:", error);
+      }
+    }
+
+    // Obtener sesiones históricas
+    const historySessionsJson = await redis.lrange(HISTORY_KEY, 0, -1);
+    historySessionsJson.forEach((sessionJson) => {
+      if (sessionJson) {
+        try {
+          allSessions.push(JSON.parse(sessionJson) as CashRegisterSession);
+        } catch (error) {
+          console.error("Error parsing history session JSON:", error);
+        }
+      }
+    });
+    
+    const { range, from, to } = searchParams;
+
+    if (range) {
+      if (range === "today") {
+        allSessions = allSessions.filter((session) =>
+          isToday(new Date(session.openedAt))
+        );
+      } else if (range === "week") {
+        allSessions = allSessions.filter((session) =>
+          isThisWeek(new Date(session.openedAt))
+        );
+      } else if (range === "month") {
+        allSessions = allSessions.filter((session) =>
+          isThisMonth(new Date(session.openedAt))
+        );
+      }
+    } else if (from && to) {
+      const startDate = new Date(from);
+      const endDate = new Date(to);
+      allSessions = allSessions.filter((session) => {
+        const sessionDate = new Date(session.openedAt);
+        return sessionDate >= startDate && sessionDate <= endDate;
+      });
+    }
+
+    // Ordenar por fecha de apertura (más reciente primero)
+    return allSessions.sort((a, b) => b.openedAt - a.openedAt);
+  } catch (error) {
+    console.error(
+      `Error fetching cash register sessions for POS ${posName} from Redis:`,
+      error
+    );
+    return [];
+  }
+}
