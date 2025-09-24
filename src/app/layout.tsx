@@ -6,6 +6,9 @@ import { Globe, ShoppingCart, List } from "lucide-react";
 import { CashRegisterStatus } from "@/components/cash-register-status";
 import "./globals.css";
 import { CashRegisterManager } from "@/components/cash-register-manager";
+import { CashRegisterProvider } from "@/components/cash-register-provider";
+import Image from "next/image";
+import Navbar from "@/components/nav-menu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,38 +35,31 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50/90`}
       >
-        <div className="min-h-screen">
-          <header className="flex items-center justify-between h-16 px-6 border-b bg-white">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-2">
-                <Globe />
-                <h1 className="text-lg font-semibold">Dato del Maestro</h1>
-              </Link>
-            </div>
-            <nav className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-black"
-              >
-                <ShoppingCart className="h-5 w-5" />
-                <span>POS</span>
-              </Link>
-              <Link
-                href="/sales"
-                className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-black"
-              >
-                <List className="h-5 w-5" />
-                <span>Ventas</span>
-              </Link>
-            </nav>
-            <div className="space-x-2">
-              <CashRegisterStatus />
-              <CashRegisterManager />
-            </div>
-          </header>
-          <main>{children}</main>
-          <PosNameSetup />
-        </div>
+        <CashRegisterProvider>
+          <div className="min-h-screen">
+            <header className="flex items-center justify-between px-6 border-b bg-white">
+              <div className="flex items-center gap-4">
+                <Link href="/" className="flex items-center gap-2">
+                  <Image
+                    src="/dato-logo.png"
+                    alt="Logo Dato del Maestro"
+                    width={100}
+                    height={100}
+                  />
+                  <h1 className="text-lg font-black text-green-600">
+                    Dato del Maestro
+                  </h1>
+                </Link>
+              </div>
+              <Navbar />
+              <div className="space-x-2">
+                <CashRegisterStatus />
+                <CashRegisterManager />
+              </div>
+            </header>
+            <main>{children}</main> <PosNameSetup />
+          </div>
+        </CashRegisterProvider>
       </body>
     </html>
   );

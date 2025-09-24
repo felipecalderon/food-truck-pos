@@ -39,7 +39,7 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
   };
 
   const handleRowClick = (sessionId: string) => {
-    router.push(`/cajas/${sessionId}`);
+    router.push(`/cajas/${encodeURIComponent(sessionId)}`);
   };
 
   if (sessions.length === 0) {
