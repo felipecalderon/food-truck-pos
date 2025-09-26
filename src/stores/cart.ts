@@ -4,9 +4,7 @@ import type { Product } from "@/types/product";
 import type { Order } from "@/types/order";
 import { createSaleInRedis } from "@/actions/sales";
 import { useOrderStore } from "./orders";
-import { Sale } from "@/types/sale";
-
-type PaymentMethod = "Efectivo" | "Debito" | "Credito";
+import { PaymentMethod, Sale } from "@/types/sale";
 
 interface CartState {
   items: CartItem[];
@@ -152,8 +150,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       console.error("Error saving sale:", error);
       return {
         success: false,
-        message:
-          error instanceof Error ? error.message : "Error desconocido",
+        message: error instanceof Error ? error.message : "Error desconocido",
       };
     } finally {
       set({ isSaving: false });

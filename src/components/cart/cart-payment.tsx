@@ -17,14 +17,14 @@ interface CartPaymentProps {
   setComment: (comment: string) => void;
 }
 
-export function CartPayment({ 
+export function CartPayment({
   paymentMethod,
   amountPaid,
   comment,
   cartTotal,
   setPaymentMethod,
   setAmountPaid,
-  setComment
+  setComment,
 }: CartPaymentProps) {
   return (
     <div className="w-full flex flex-col gap-4">
@@ -32,9 +32,9 @@ export function CartPayment({
         <Label className="mb-2 block">Método de Pago</Label>
         <RadioGroup
           value={paymentMethod}
-          onValueChange={(value: "Efectivo" | "Debito" | "Credito") =>
-            setPaymentMethod(value)
-          }
+          onValueChange={(
+            value: "Efectivo" | "Debito" | "Credito" | "Transferencia"
+          ) => setPaymentMethod(value)}
           className="flex gap-4"
         >
           <div className="flex items-center space-x-2">
@@ -48,6 +48,10 @@ export function CartPayment({
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="Credito" id="r3" />
             <Label htmlFor="r3">Crédito</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="Transferencia" id="r4" />
+            <Label htmlFor="r4">Transferencia</Label>
           </div>
         </RadioGroup>
       </div>

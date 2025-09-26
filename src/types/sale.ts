@@ -1,6 +1,6 @@
 import { CartItem } from "./cart";
 
-export type PaymentMethod = "Efectivo" | "Debito" | "Credito";
+export type PaymentMethod = "Efectivo" | "Debito" | "Credito" | "Transferencia";
 
 export interface Sale {
   id: string; // ID único de la venta
@@ -9,7 +9,7 @@ export interface Sale {
   items: CartItem[];
   total: number;
   date: string;
-  paymentMethod: "Efectivo" | "Debito" | "Credito";
+  paymentMethod: PaymentMethod;
   amountPaid: number;
   change: number;
   comment?: string; // Comentario opcional de la venta
