@@ -107,14 +107,14 @@ export async function createSaleInRedis(
       comment,
     };
 
-    const isCashSale = paymentMethod === "Efectivo";
-    const newCalculatedSales = isCashSale
-      ? session.calculatedSales + total
-      : session.calculatedSales;
+    // const isCashSale = paymentMethod === "Efectivo";
+    // const newCalculatedSales = isCashSale
+    //   ? session.calculatedSales + total
+    //   : session.calculatedSales;
 
     const updatedSession: CashRegisterSession = {
       ...session,
-      calculatedSales: newCalculatedSales,
+      calculatedSales: session.calculatedSales + total,
     };
     const CURRENT_SESSION_KEY = `cash-register:${posName}:current`;
     await redis
@@ -128,7 +128,11 @@ export async function createSaleInRedis(
     revalidatePath("/");
 
     console.log(`Venta ${saleId} desde ${posName} guardada en Redis.`);
-    return { success: true, message: "Venta guardada con éxito en Redis.", sale };
+    return {
+      success: true,
+      message: "Venta guardada con éxito en Redis.",
+      sale,
+    };
   } catch (error) {
     console.error("Error al guardar la venta en Redis:", error);
     return {

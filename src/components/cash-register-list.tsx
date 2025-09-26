@@ -24,9 +24,17 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const handleDelete = (e: React.MouseEvent, sessionId: string, posName: string) => {
+  const handleDelete = (
+    e: React.MouseEvent,
+    sessionId: string,
+    posName: string
+  ) => {
     e.stopPropagation(); // Evita que el evento de clic se propague a la fila
-    if (window.confirm("¿Estás seguro de que quieres eliminar esta sesión de caja? Esta acción no se puede deshacer.")) {
+    if (
+      window.confirm(
+        "¿Estás seguro de que quieres eliminar esta sesión de caja? Esta acción no se puede deshacer."
+      )
+    ) {
       startTransition(async () => {
         const result = await deleteCashRegister(sessionId, posName);
         if (result.success) {
@@ -62,46 +70,56 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sessions.map((session) => (
-          <TableRow key={session.id} onClick={() => handleRowClick(session.id)} className="cursor-pointer">
-            <TableCell className="font-medium">{session.posName}</TableCell>
-            <TableCell>
-              <Badge variant={session.status === "OPEN" ? "default" : "destructive"}>
-                {session.status === "OPEN" ? "Abierta" : "Cerrada"}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              {new Date(session.openedAt).toLocaleString("es-CL")}
-            </TableCell>
-            <TableCell>{formatCurrency(session.openingBalance)}</TableCell>
-            <TableCell>{formatCurrency(session.calculatedSales)}</TableCell>
-            <TableCell>
-              {session.closedAt
-                ? new Date(session.closedAt).toLocaleString("es-CL")
-                : "N/A"}
-            </TableCell>
-            <TableCell>
-              {session.closingBalance
-                ? formatCurrency(session.closingBalance)
-                : "N/A"}
-            </TableCell>
-            <TableCell>
-              {session.difference !== undefined
-                ? formatCurrency(session.difference)
-                : "N/A"}
-            </TableCell>
-            <TableCell className="text-right">
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={(e) => handleDelete(e, session.id, session.posName)}
-                disabled={isPending}
-              >
-                {isPending ? "Eliminando..." : "Eliminar"}
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
+        {sessions.map((session) => {
+          return (
+            <TableRow
+              key={session.id}
+              onClick={() => handleRowClick(session.id)}
+              className="cursor-pointer"
+            >
+              <TableCell className="font-medium">{session.posName}</TableCell>
+              <TableCell>
+                <Badge
+                  variant={
+                    session.status === "OPEN" ? "default" : "destructive"
+                  }
+                >
+                  {session.status === "OPEN" ? "Abierta" : "Cerrada"}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                {new Date(session.openedAt).toLocaleString("es-CL")}
+              </TableCell>
+              <TableCell>{formatCurrency(session.openingBalance)}</TableCell>
+              <TableCell>{formatCurrency(session.calculatedSales)}</TableCell>
+              <TableCell>
+                {session.closedAt
+                  ? new Date(session.closedAt).toLocaleString("es-CL")
+                  : "N/A"}
+              </TableCell>
+              <TableCell>
+                {session.closingBalance
+                  ? formatCurrency(session.closingBalance)
+                  : "N/A"}
+              </TableCell>
+              <TableCell>
+                {session.difference !== undefined
+                  ? formatCurrency(session.difference)
+                  : "N/A"}
+              </TableCell>
+              <TableCell className="text-right">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={(e) => handleDelete(e, session.id, session.posName)}
+                  disabled={isPending}
+                >
+                  {isPending ? "Eliminando..." : "Eliminar"}
+                </Button>
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
