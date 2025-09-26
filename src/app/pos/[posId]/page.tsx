@@ -20,12 +20,12 @@ export default async function PosCajasPage({
 }: PosCajasPageProps) {
   const { posId } = await params;
   const searchPrms = await searchParams;
+  const strPosId = decodeURIComponent(posId);
   const sessions: CashRegisterSession[] =
-    await getCashRegisterSessionsByPosName(posId, searchPrms);
-
+    await getCashRegisterSessionsByPosName(strPosId, searchPrms);
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-6">Cajas del POS: {posId}</h1>
+      <h1 className="text-3xl font-bold mb-6">Cajas del POS: {strPosId}</h1>
       <TotalSalesFilter />
       <CashRegisterList sessions={sessions} />
     </div>

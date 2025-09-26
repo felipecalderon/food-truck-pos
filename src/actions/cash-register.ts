@@ -5,10 +5,16 @@ import { CashRegisterSession } from "@/types/cash-register";
 import { Sale } from "@/types/sale";
 import { isToday, isThisWeek, isThisMonth } from "date-fns";
 
-export async function getSessionDetails(sessionId: string): Promise<{ session: CashRegisterSession | null; sales: Sale[] }> {
+export async function getSessionDetails(
+  sessionId: string
+): Promise<{ session: CashRegisterSession | null; sales: Sale[] }> {
   try {
     // Obtener todas las sesiones y encontrar la correcta
-    const allSessions = await getAllCashRegisterSessions({ range: undefined, from: undefined, to: undefined });
+    const allSessions = await getAllCashRegisterSessions({
+      range: undefined,
+      from: undefined,
+      to: undefined,
+    });
     const session = allSessions.find((s) => s.id === sessionId) || null;
 
     if (!session) {
@@ -42,7 +48,6 @@ export async function getSessionDetails(sessionId: string): Promise<{ session: C
     return { session: null, sales: [] };
   }
 }
-
 
 type SessionProps = Promise<CashRegisterSession | null>;
 
@@ -286,7 +291,7 @@ export async function getCashRegisterSessionsByPosName(
         }
       }
     });
-    
+
     const { range, from, to } = searchParams;
 
     if (range) {
