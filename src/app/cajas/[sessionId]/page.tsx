@@ -161,7 +161,11 @@ export default async function SessionDetailsPage({
                     session.difference < 0 ? "text-red-500" : "text-green-700"
                   }
                 >
-                  {formatCurrency(session.difference)}
+                  {formatCurrency(
+                    session.openingBalance +
+                      salesByPaymentMethod.cash -
+                      (session.closingBalance ?? 0)
+                  )}
                 </p>
               </div>
             </CardContent>

@@ -61,12 +61,11 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
           <TableHead>POS</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead>Apertura</TableHead>
-          <TableHead>Saldo Inicial</TableHead>
-          <TableHead>Ventas Calculadas</TableHead>
           <TableHead>Cierre</TableHead>
+          <TableHead>Saldo Inicial</TableHead>
           <TableHead>Saldo Final</TableHead>
-          <TableHead>Diferencia</TableHead>
-          <TableHead className="text-right">Acciones</TableHead>
+          <TableHead>Ventas Totales</TableHead>
+          {/* <TableHead className="text-right">Acciones</TableHead> */}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -90,24 +89,19 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
               <TableCell>
                 {new Date(session.openedAt).toLocaleString("es-CL")}
               </TableCell>
-              <TableCell>{formatCurrency(session.openingBalance)}</TableCell>
-              <TableCell>{formatCurrency(session.calculatedSales)}</TableCell>
               <TableCell>
                 {session.closedAt
                   ? new Date(session.closedAt).toLocaleString("es-CL")
                   : "N/A"}
               </TableCell>
+              <TableCell>{formatCurrency(session.openingBalance)}</TableCell>
               <TableCell>
                 {session.closingBalance
                   ? formatCurrency(session.closingBalance)
                   : "N/A"}
               </TableCell>
-              <TableCell>
-                {session.difference !== undefined
-                  ? formatCurrency(session.difference)
-                  : "N/A"}
-              </TableCell>
-              <TableCell className="text-right">
+              <TableCell>{formatCurrency(session.calculatedSales)}</TableCell>
+              {/* <TableCell className="text-right">
                 <Button
                   variant="destructive"
                   size="sm"
@@ -116,7 +110,7 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
                 >
                   {isPending ? "Eliminando..." : "Eliminar"}
                 </Button>
-              </TableCell>
+              </TableCell> */}
             </TableRow>
           );
         })}
