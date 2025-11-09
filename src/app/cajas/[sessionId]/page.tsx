@@ -27,6 +27,13 @@ export default async function SessionDetailsPage({
   const totalSales = sales.reduce((acc, sale) => acc + sale.total, 0);
   const topProducts = getTopSoldProducts(sales);
 
+  const saleDiff = () => {
+    const totalCounted = session.closingBalance ?? 0;
+    const totalCash = session.openingBalance + salesByPaymentMethod.cash;
+    const diff = totalCounted - totalCash;
+    return diff;
+  };
+
   return (
     <div className="container mx-auto py-10 px-6 space-y-8">
       <div>
@@ -161,11 +168,7 @@ export default async function SessionDetailsPage({
                     session.difference < 0 ? "text-red-500" : "text-green-700"
                   }
                 >
-                  {formatCurrency(
-                    session.openingBalance +
-                      salesByPaymentMethod.cash -
-                      (session.closingBalance ?? 0)
-                  )}
+                  {formatCurrency(saleDiff())}
                 </p>
               </div>
             </CardContent>

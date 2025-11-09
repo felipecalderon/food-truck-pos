@@ -53,6 +53,10 @@ export function CartPayment({
             <RadioGroupItem value="Transferencia" id="r4" />
             <Label htmlFor="r4">Transferencia</Label>
           </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="Credito JEFE" id="r5" />
+            <Label htmlFor="r5">Gastos del Jefe</Label>
+          </div>
         </RadioGroup>
       </div>
 
