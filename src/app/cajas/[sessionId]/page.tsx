@@ -165,7 +165,7 @@ export default async function SessionDetailsPage({
                 <p>Diferencia</p>
                 <p
                   className={
-                    session.difference < 0 ? "text-red-500" : "text-green-700"
+                    saleDiff() < 0 ? "text-red-500" : "text-green-700"
                   }
                 >
                   {formatCurrency(saleDiff())}
