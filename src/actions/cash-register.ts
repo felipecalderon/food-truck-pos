@@ -1,52 +1,63 @@
 "use server";
 
-import redis from "@/lib/redis";
+import redis from "@/lib/redis"; // Deprecated, but keeping import if needed for migration scripts or cleanup
 import { CashRegisterSession } from "@/types/cash-register";
 import { Sale } from "@/types/sale";
 import { isToday, isThisWeek, isThisMonth } from "date-fns";
+import connectDB from "@/lib/db";
+import CashRegisterSessionModel, {
+  ICashRegisterSession,
+} from "@/models/CashRegisterSession";
+import { getAllSales } from "./sales";
+import SaleModel from "@/models/Sale";
+
+// Helper to map Mongoose document to CashRegisterSession interface
+function mapSessionDocument(doc: ICashRegisterSession): CashRegisterSession {
+  return {
+    id: doc.sessionId,
+    posName: doc.posName,
+    openedAt: doc.openedAt.getTime(),
+    closedAt: doc.closedAt ? doc.closedAt.getTime() : undefined,
+    openingBalance: doc.openingBalance,
+    closingBalance: doc.closingBalance,
+    calculatedSales: doc.calculatedSales,
+    difference: doc.difference,
+    status: doc.status,
+  };
+}
 
 export async function getSessionDetails(
   sessionId: string
 ): Promise<{ session: CashRegisterSession | null; sales: Sale[] }> {
-  try {
-    // Obtener todas las sesiones y encontrar la correcta
-    const allSessions = await getAllCashRegisterSessions({
-      range: undefined,
-      from: undefined,
-      to: undefined,
-    });
-    const session = allSessions.find((s) => s.id === sessionId) || null;
+  await connectDB();
+  const sessionDoc = await CashRegisterSessionModel.findOne({ sessionId });
 
-    if (!session) {
-      return { session: null, sales: [] };
-    }
-
-    // Obtener los IDs de las ventas de la sesión
-    const saleIds = await redis.smembers(`session-sales:${sessionId}`);
-    if (saleIds.length === 0) {
-      return { session, sales: [] };
-    }
-
-    // Obtener los detalles de cada venta
-    const saleKeys = saleIds.map((id) => `sale:${id}`);
-    const salesJson = await redis.mget(saleKeys);
-
-    const sales = salesJson
-      .map((saleJson) => {
-        try {
-          return saleJson ? (JSON.parse(saleJson) as Sale) : null;
-        } catch (e) {
-          return null;
-        }
-      })
-      .filter((sale): sale is Sale => sale !== null)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    return { session, sales };
-  } catch (error) {
-    console.error("Error fetching session details from Redis:", error);
+  if (!sessionDoc) {
     return { session: null, sales: [] };
   }
+
+  const session = mapSessionDocument(sessionDoc);
+
+  // Fetch sales for this session
+  // We can use the SaleModel directly
+  const salesDocs = await SaleModel.find({ sessionId })
+    .sort({ date: -1 })
+    .lean();
+
+  const sales: Sale[] = salesDocs.map((doc: any) => ({
+    id: doc.saleId,
+    sessionId: doc.sessionId,
+    posName: doc.posName,
+    items: doc.items,
+    total: doc.total,
+    date: doc.date.toISOString(),
+    paymentMethod: doc.paymentMethod,
+    amountPaid: doc.amountPaid,
+    change: doc.change,
+    comment: doc.comment,
+  }));
+
+  return { session, sales };
 }
 
 type SessionProps = Promise<CashRegisterSession | null>;
@@ -55,76 +66,73 @@ export const openCashRegister = async (
   openingBalance: number,
   posName: string
 ): Promise<CashRegisterSession> => {
-  const CURRENT_SESSION_KEY = `cash-register:${posName}:current`;
-  // TODO: Verificar si ya existe una sesión abierta
-  const newSession: CashRegisterSession = {
-    id: new Date().toISOString(),
-    posName: posName,
-    openedAt: Date.now(),
+  await connectDB();
+
+  // Check if there is already an open session
+  const existingSession = await CashRegisterSessionModel.findOne({
+    posName,
+    status: "OPEN",
+  });
+  if (existingSession) {
+    throw new Error("Ya existe una caja abierta para este punto de venta.");
+  }
+
+  const sessionId = new Date().toISOString(); // Keeping same ID generation strategy or use UUID
+
+  const newSessionData = {
+    sessionId,
+    posName,
+    openedAt: new Date(),
     openingBalance,
     calculatedSales: 0,
     difference: 0,
     status: "OPEN",
   };
 
-  await redis.set(CURRENT_SESSION_KEY, JSON.stringify(newSession));
+  const newSession = await CashRegisterSessionModel.create(newSessionData);
 
-  return newSession;
+  return mapSessionDocument(newSession);
 };
 
 export const getCurrentSession = async (posName: string): SessionProps => {
-  const CURRENT_SESSION_KEY = `cash-register:${posName}:current`;
-  const sessionData = await redis.get(CURRENT_SESSION_KEY);
+  await connectDB();
+  const sessionDoc = await CashRegisterSessionModel.findOne({
+    posName,
+    status: "OPEN",
+  });
 
-  if (!sessionData) {
+  if (!sessionDoc) {
     return null;
   }
 
-  try {
-    const session = JSON.parse(sessionData as string) as CashRegisterSession;
-    return session;
-  } catch (error) {
-    console.error("Error parsing cash register session data:", error);
-    return null;
-  }
+  return mapSessionDocument(sessionDoc);
 };
 
 export const closeCashRegister = async (
   closingBalance: number,
   posName: string
 ): Promise<CashRegisterSession> => {
-  const CURRENT_SESSION_KEY = `cash-register:${posName}:current`;
-  const sessionData = await redis.get(CURRENT_SESSION_KEY);
-  if (!sessionData) {
+  await connectDB();
+
+  const sessionDoc = await CashRegisterSessionModel.findOne({
+    posName,
+    status: "OPEN",
+  });
+  if (!sessionDoc) {
     throw new Error("No hay una sesión de caja abierta para cerrar.");
   }
 
-  const session = JSON.parse(sessionData as string) as CashRegisterSession;
-  if (session.status !== "OPEN") {
-    throw new Error(
-      `La sesión de caja tiene un estado inválido: ${session.status}`
-    );
-  }
-
   const difference =
-    closingBalance - session.openingBalance - session.calculatedSales;
+    closingBalance - sessionDoc.openingBalance - sessionDoc.calculatedSales;
 
-  const closedSession: CashRegisterSession = {
-    ...session,
-    closedAt: Date.now(),
-    closingBalance,
-    difference,
-    status: "CLOSED",
-  };
+  sessionDoc.closedAt = new Date();
+  sessionDoc.closingBalance = closingBalance;
+  sessionDoc.difference = difference;
+  sessionDoc.status = "CLOSED";
 
-  // Mover la sesión a un historial y limpiar la sesión actual
-  await redis
-    .multi()
-    .rpush(`cash-register:${posName}:history`, JSON.stringify(closedSession))
-    .del(CURRENT_SESSION_KEY)
-    .exec();
+  await sessionDoc.save();
 
-  return closedSession;
+  return mapSessionDocument(sessionDoc);
 };
 
 export async function getAllCashRegisterSessions(searchParams: {
@@ -133,71 +141,65 @@ export async function getAllCashRegisterSessions(searchParams: {
   to?: string;
 }): Promise<CashRegisterSession[]> {
   try {
-    const currentSessionKeys = await redis.keys("cash-register:*:current");
-    const historySessionKeys = await redis.keys("cash-register:*:history");
-
-    let allSessions: CashRegisterSession[] = [];
-
-    // Obtener sesiones actuales
-    if (currentSessionKeys.length > 0) {
-      const currentSessionsJson = await redis.mget(currentSessionKeys);
-      currentSessionsJson.forEach((sessionJson) => {
-        if (sessionJson) {
-          try {
-            allSessions.push(JSON.parse(sessionJson) as CashRegisterSession);
-          } catch (error) {
-            console.error("Error parsing current session JSON:", error);
-          }
-        }
-      });
-    }
-
-    // Obtener sesiones históricas
-    if (historySessionKeys.length > 0) {
-      for (const historyKey of historySessionKeys) {
-        const historySessionsJson = await redis.lrange(historyKey, 0, -1);
-        historySessionsJson.forEach((sessionJson) => {
-          if (sessionJson) {
-            try {
-              allSessions.push(JSON.parse(sessionJson) as CashRegisterSession);
-            } catch (error) {
-              console.error("Error parsing history session JSON:", error);
-            }
-          }
-        });
-      }
-    }
-
+    await connectDB();
     const { range, from, to } = searchParams;
+    let query: any = {};
 
+    // Date filtering on 'openedAt'
     if (range) {
+      const now = new Date();
       if (range === "today") {
-        allSessions = allSessions.filter((session) =>
-          isToday(new Date(session.openedAt))
-        );
+        const start = new Date(now.setHours(0, 0, 0, 0));
+        const end = new Date(now.setHours(23, 59, 59, 999));
+        query.openedAt = { $gte: start, $lte: end };
       } else if (range === "week") {
-        allSessions = allSessions.filter((session) =>
-          isThisWeek(new Date(session.openedAt))
-        );
+        const start = new Date(now.setDate(now.getDate() - now.getDay()));
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(now.setDate(start.getDate() + 6));
+        end.setHours(23, 59, 59, 999);
       } else if (range === "month") {
-        allSessions = allSessions.filter((session) =>
-          isThisMonth(new Date(session.openedAt))
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
         );
+        query.openedAt = { $gte: start, $lte: end };
       }
     } else if (from && to) {
-      const startDate = new Date(from);
-      const endDate = new Date(to);
-      allSessions = allSessions.filter((session) => {
-        const sessionDate = new Date(session.openedAt);
-        return sessionDate >= startDate && sessionDate <= endDate;
-      });
+      query.openedAt = { $gte: new Date(from), $lte: new Date(to) };
     }
 
-    // Ordenar por fecha de apertura (más reciente primero)
-    return allSessions.sort((a, b) => b.openedAt - a.openedAt);
+    const sessionsDocs = await CashRegisterSessionModel.find(query).sort({
+      openedAt: -1,
+    });
+
+    let allSessions = sessionsDocs.map(mapSessionDocument);
+
+    // Fallback client-side filtering to match exact legacy logic if needed,
+    // especially for 'week' which relies on locale in previous implementation.
+    if (range === "week") {
+      allSessions = allSessions.filter((session: CashRegisterSession) =>
+        isThisWeek(new Date(session.openedAt))
+      );
+    } else if (range === "today") {
+      allSessions = allSessions.filter((session: CashRegisterSession) =>
+        isToday(new Date(session.openedAt))
+      );
+    } else if (range == "month") {
+      allSessions = allSessions.filter((session: CashRegisterSession) =>
+        isThisMonth(new Date(session.openedAt))
+      );
+    }
+
+    return allSessions;
   } catch (error) {
     console.error(
-      "Error fetching all cash register sessions from Redis:",
+      "Error fetching all cash register sessions from MongoDB:",
       error
     );
     return [];
@@ -209,43 +211,14 @@ export async function deleteCashRegister(
   posName: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    // Primero, intenta ver si es la sesión actual
-    const CURRENT_SESSION_KEY = `cash-register:${posName}:current`;
-    const currentSessionJSON = await redis.get(CURRENT_SESSION_KEY);
+    await connectDB();
 
-    if (currentSessionJSON) {
-      const currentSession = JSON.parse(
-        currentSessionJSON
-      ) as CashRegisterSession;
-      if (currentSession.id === sessionId) {
-        // Si es la sesión actual, la eliminamos
-        await redis.del(CURRENT_SESSION_KEY);
-        return {
-          success: true,
-          message: "Sesión de caja actual eliminada con éxito.",
-        };
-      }
-    }
+    const result = await CashRegisterSessionModel.deleteOne({ sessionId });
 
-    // Si no es la sesión actual, búscala en el historial
-    const HISTORY_KEY = `cash-register:${posName}:history`;
-    const historySessionsJSON = await redis.lrange(HISTORY_KEY, 0, -1);
-
-    let sessionToDeleteJSON: string | null = null;
-    for (const sessionJSON of historySessionsJSON) {
-      const session = JSON.parse(sessionJSON) as CashRegisterSession;
-      if (session.id === sessionId) {
-        sessionToDeleteJSON = sessionJSON;
-        break;
-      }
-    }
-
-    if (sessionToDeleteJSON) {
-      // Elimina la sesión del historial
-      await redis.lrem(HISTORY_KEY, 1, sessionToDeleteJSON);
+    if (result.deletedCount === 1) {
       return {
         success: true,
-        message: "Sesión de caja del historial eliminada con éxito.",
+        message: "Sesión de caja eliminada con éxito.",
       };
     }
 
@@ -265,63 +238,62 @@ export async function getCashRegisterSessionsByPosName(
   }
 ): Promise<CashRegisterSession[]> {
   try {
-    const CURRENT_SESSION_KEY = `cash-register:${posName}:current`;
-    const HISTORY_KEY = `cash-register:${posName}:history`;
-
-    let allSessions: CashRegisterSession[] = [];
-
-    // Obtener sesión actual
-    const currentSessionJson = await redis.get(CURRENT_SESSION_KEY);
-    if (currentSessionJson) {
-      try {
-        allSessions.push(JSON.parse(currentSessionJson) as CashRegisterSession);
-      } catch (error) {
-        console.error("Error parsing current session JSON:", error);
-      }
-    }
-
-    // Obtener sesiones históricas
-    const historySessionsJson = await redis.lrange(HISTORY_KEY, 0, -1);
-    historySessionsJson.forEach((sessionJson) => {
-      if (sessionJson) {
-        try {
-          allSessions.push(JSON.parse(sessionJson) as CashRegisterSession);
-        } catch (error) {
-          console.error("Error parsing history session JSON:", error);
-        }
-      }
-    });
-
+    await connectDB();
+    // Similar filtering logic as getAllCashRegisterSessions but constrained by posName
     const { range, from, to } = searchParams;
+    let query: any = { posName };
 
     if (range) {
+      const now = new Date();
       if (range === "today") {
-        allSessions = allSessions.filter((session) =>
-          isToday(new Date(session.openedAt))
-        );
+        const start = new Date(now.setHours(0, 0, 0, 0));
+        const end = new Date(now.setHours(23, 59, 59, 999));
+        query.openedAt = { $gte: start, $lte: end };
       } else if (range === "week") {
-        allSessions = allSessions.filter((session) =>
-          isThisWeek(new Date(session.openedAt))
-        );
+        // Simplified mongo filter, refined by JS below
+        const start = new Date(now.setDate(now.getDate() - now.getDay()));
+        start.setHours(0, 0, 0, 0);
+        query.openedAt = { $gte: start };
       } else if (range === "month") {
-        allSessions = allSessions.filter((session) =>
-          isThisMonth(new Date(session.openedAt))
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
         );
+        query.openedAt = { $gte: start, $lte: end };
       }
     } else if (from && to) {
-      const startDate = new Date(from);
-      const endDate = new Date(to);
-      allSessions = allSessions.filter((session) => {
-        const sessionDate = new Date(session.openedAt);
-        return sessionDate >= startDate && sessionDate <= endDate;
-      });
+      query.openedAt = { $gte: new Date(from), $lte: new Date(to) };
     }
 
-    // Ordenar por fecha de apertura (más reciente primero)
-    return allSessions.sort((a, b) => b.openedAt - a.openedAt);
+    const sessionsDocs = await CashRegisterSessionModel.find(query).sort({
+      openedAt: -1,
+    });
+    let sessions = sessionsDocs.map(mapSessionDocument);
+
+    if (range === "week") {
+      sessions = sessions.filter((session: CashRegisterSession) =>
+        isThisWeek(new Date(session.openedAt))
+      );
+    } else if (range === "today") {
+      sessions = sessions.filter((session: CashRegisterSession) =>
+        isToday(new Date(session.openedAt))
+      );
+    } else if (range == "month") {
+      sessions = sessions.filter((session: CashRegisterSession) =>
+        isThisMonth(new Date(session.openedAt))
+      );
+    }
+
+    return sessions;
   } catch (error) {
     console.error(
-      `Error fetching cash register sessions for POS ${posName} from Redis:`,
+      `Error fetching cash register sessions for POS ${posName} from MongoDB:`,
       error
     );
     return [];
