@@ -70,7 +70,7 @@ Se ha implementado un sistema integral para la gestión de apertura y cierre de 
 ### Funcionalidad Principal
 
 - **Apertura de Caja**: El usuario debe iniciar una sesión de caja introduciendo un saldo inicial. Mientras la caja no esté abierta, no se pueden procesar nuevas ventas.
-- **Registro de Ventas**: Cada venta realizada (con `createSaleInRedis`) se asocia a la sesión de caja abierta, actualizando en tiempo real el monto de `calculatedSales` en Redis.
+- **Registro de Ventas**: Cada venta realizada (con `createSale`) se asocia a la sesión de caja abierta, actualizando en tiempo real el monto de `calculatedSales` en Redis.
 - **Cierre de Caja**: Al final del turno, el usuario puede cerrar la caja. El sistema presenta un resumen con el saldo inicial, el total de ventas registrado y el monto esperado en caja. El usuario introduce el monto final contado y el sistema calcula la diferencia (sobrante o faltante).
 - **Persistencia y Auditoría**: El estado de la caja se gestiona en Redis. Las sesiones cerradas se mueven a un historial para permitir auditorías futuras.
 
@@ -81,6 +81,6 @@ Se ha implementado un sistema integral para la gestión de apertura y cierre de 
   - `openCashRegister`: Inicia una nueva sesión.
   - `getCurrentSession`: Obtiene el estado de la caja actual.
   - `closeCashRegister`: Finaliza la sesión y la archiva.
-- **`src/actions/sales.ts` (Modificado)**: La acción `createSaleInRedis` fue actualizada para verificar el estado de la caja y registrar el monto de la venta en la sesión activa.
+- `src/actions/sales.ts`: La acción `createSale` fue actualizada para verificar el estado de la caja y registrar el monto de la venta en la sesión activa.
 - **`src/components/cash-register-manager.tsx`**: Componente de UI que renderiza los botones "Abrir/Cerrar Caja" y gestiona los diálogos para la interacción del usuario.
 - **`src/components/cash-register-status.tsx`**: Componente de servidor que se muestra en el `header` y refleja el estado actual de la caja ("Abierta" o "Cerrada").

@@ -1,6 +1,5 @@
 "use server";
 
-import redis from "@/lib/redis"; // Deprecated, but keeping import if needed for migration scripts or cleanup
 import { CashRegisterSession } from "@/types/cash-register";
 import { Sale } from "@/types/sale";
 import { isToday, isThisWeek, isThisMonth } from "date-fns";
@@ -66,32 +65,56 @@ export const openCashRegister = async (
   openingBalance: number,
   posName: string
 ): Promise<CashRegisterSession> => {
-  await connectDB();
+  try {
+    await connectDB();
 
-  // Check if there is already an open session
-  const existingSession = await CashRegisterSessionModel.findOne({
-    posName,
-    status: "OPEN",
-  });
-  if (existingSession) {
-    throw new Error("Ya existe una caja abierta para este punto de venta.");
+    // Validar que posName no esté vacío
+    if (!posName || posName.trim() === "") {
+      throw new Error("El nombre del punto de venta es requerido.");
+    }
+
+    // Validar que openingBalance sea un número válido
+    if (typeof openingBalance !== "number" || isNaN(openingBalance)) {
+      throw new Error("El saldo inicial debe ser un número válido.");
+    }
+
+    // Check if there is already an open session
+    const existingSession = await CashRegisterSessionModel.findOne({
+      posName,
+      status: "OPEN",
+    });
+
+    if (existingSession) {
+      throw new Error("Ya existe una caja abierta para este punto de venta.");
+    }
+
+    const sessionId = new Date().toISOString();
+
+    const newSessionData = {
+      sessionId,
+      posName,
+      openedAt: new Date(),
+      openingBalance,
+      calculatedSales: 0,
+      difference: 0,
+      status: "OPEN" as const,
+    };
+
+    const newSession = await CashRegisterSessionModel.create(newSessionData);
+
+    if (!newSession) {
+      throw new Error("Error al crear la sesión de caja en la base de datos.");
+    }
+
+    return mapSessionDocument(newSession);
+  } catch (error) {
+    console.error("Error en openCashRegister:", error);
+    // Re-throw con mensaje más descriptivo si es un error de MongoDB
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Error desconocido al abrir la caja.");
   }
-
-  const sessionId = new Date().toISOString(); // Keeping same ID generation strategy or use UUID
-
-  const newSessionData = {
-    sessionId,
-    posName,
-    openedAt: new Date(),
-    openingBalance,
-    calculatedSales: 0,
-    difference: 0,
-    status: "OPEN",
-  };
-
-  const newSession = await CashRegisterSessionModel.create(newSessionData);
-
-  return mapSessionDocument(newSession);
 };
 
 export const getCurrentSession = async (posName: string): SessionProps => {
@@ -112,27 +135,51 @@ export const closeCashRegister = async (
   closingBalance: number,
   posName: string
 ): Promise<CashRegisterSession> => {
-  await connectDB();
+  try {
+    await connectDB();
 
-  const sessionDoc = await CashRegisterSessionModel.findOne({
-    posName,
-    status: "OPEN",
-  });
-  if (!sessionDoc) {
-    throw new Error("No hay una sesión de caja abierta para cerrar.");
+    // Validar parámetros
+    if (!posName || posName.trim() === "") {
+      throw new Error("El nombre del punto de venta es requerido.");
+    }
+
+    if (typeof closingBalance !== "number" || isNaN(closingBalance)) {
+      throw new Error("El saldo de cierre debe ser un número válido.");
+    }
+
+    const sessionDoc = await CashRegisterSessionModel.findOne({
+      posName,
+      status: "OPEN",
+    });
+
+    if (!sessionDoc) {
+      throw new Error("No hay una sesión de caja abierta para cerrar.");
+    }
+
+    const difference =
+      closingBalance - sessionDoc.openingBalance - sessionDoc.calculatedSales;
+
+    sessionDoc.closedAt = new Date();
+    sessionDoc.closingBalance = closingBalance;
+    sessionDoc.difference = difference;
+    sessionDoc.status = "CLOSED";
+
+    const savedSession = await sessionDoc.save();
+
+    if (!savedSession) {
+      throw new Error(
+        "Error al guardar el cierre de caja en la base de datos."
+      );
+    }
+
+    return mapSessionDocument(savedSession);
+  } catch (error) {
+    console.error("Error en closeCashRegister:", error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Error desconocido al cerrar la caja.");
   }
-
-  const difference =
-    closingBalance - sessionDoc.openingBalance - sessionDoc.calculatedSales;
-
-  sessionDoc.closedAt = new Date();
-  sessionDoc.closingBalance = closingBalance;
-  sessionDoc.difference = difference;
-  sessionDoc.status = "CLOSED";
-
-  await sessionDoc.save();
-
-  return mapSessionDocument(sessionDoc);
 };
 
 export async function getAllCashRegisterSessions(searchParams: {

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { CartItem } from "@/types/cart";
 import type { Product } from "@/types/product";
 import type { Order } from "@/types/order";
-import { createSaleInRedis } from "@/actions/sales";
+import { createSale } from "@/actions/sales";
 import { useOrderStore } from "./orders";
 import { PaymentMethod, Sale } from "@/types/sale";
 
@@ -129,7 +129,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     const change = getChange();
 
     try {
-      const result = await createSaleInRedis(
+      const result = await createSale(
         items,
         total,
         paymentMethod,
