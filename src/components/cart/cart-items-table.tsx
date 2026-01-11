@@ -14,7 +14,7 @@ import type { CartItem } from "@/types/cart";
 
 interface CartItemsTableProps {
   items: CartItem[];
-  updateQuantity: (sku: number, quantity: number) => void;
+  updateQuantity: (sku: string, quantity: number) => void;
 }
 
 export function CartItemsTable({ items, updateQuantity }: CartItemsTableProps) {

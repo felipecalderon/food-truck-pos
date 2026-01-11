@@ -18,7 +18,7 @@ interface CartState {
   showReceipt: boolean;
   setCashRegisterOpen: (isOpen: boolean) => void;
   addToCart: (product: Product) => void;
-  updateQuantity: (sku: number, quantity: number) => void;
+  updateQuantity: (sku: string, quantity: number) => void;
   clearCart: () => void;
   closeReceipt: () => void;
   loadOrder: (order: Order) => void;
