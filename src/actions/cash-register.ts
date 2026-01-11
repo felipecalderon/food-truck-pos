@@ -7,10 +7,8 @@ import connectDB from "@/lib/db";
 import CashRegisterSessionModel, {
   ICashRegisterSession,
 } from "@/models/CashRegisterSession";
-import { getAllSales } from "./sales";
 import SaleModel from "@/models/Sale";
 
-// Helper to map Mongoose document to CashRegisterSession interface
 function mapSessionDocument(doc: ICashRegisterSession): CashRegisterSession {
   return {
     id: doc.sessionId,
@@ -37,8 +35,6 @@ export async function getSessionDetails(
 
   const session = mapSessionDocument(sessionDoc);
 
-  // Fetch sales for this session
-  // We can use the SaleModel directly
   const salesDocs = await SaleModel.find({ sessionId })
     .sort({ date: -1 })
     .lean();
@@ -68,17 +64,14 @@ export const openCashRegister = async (
   try {
     await connectDB();
 
-    // Validar que posName no esté vacío
     if (!posName || posName.trim() === "") {
       throw new Error("El nombre del punto de venta es requerido.");
     }
 
-    // Validar que openingBalance sea un número válido
     if (typeof openingBalance !== "number" || isNaN(openingBalance)) {
       throw new Error("El saldo inicial debe ser un número válido.");
     }
 
-    // Check if there is already an open session
     const existingSession = await CashRegisterSessionModel.findOne({
       posName,
       status: "OPEN",
@@ -109,7 +102,6 @@ export const openCashRegister = async (
     return mapSessionDocument(newSession);
   } catch (error) {
     console.error("Error en openCashRegister:", error);
-    // Re-throw con mensaje más descriptivo si es un error de MongoDB
     if (error instanceof Error) {
       throw error;
     }
@@ -138,7 +130,6 @@ export const closeCashRegister = async (
   try {
     await connectDB();
 
-    // Validar parámetros
     if (!posName || posName.trim() === "") {
       throw new Error("El nombre del punto de venta es requerido.");
     }
@@ -192,7 +183,6 @@ export async function getAllCashRegisterSessions(searchParams: {
     const { range, from, to } = searchParams;
     let query: any = {};
 
-    // Date filtering on 'openedAt'
     if (range) {
       const now = new Date();
       if (range === "today") {
@@ -227,8 +217,6 @@ export async function getAllCashRegisterSessions(searchParams: {
 
     let allSessions = sessionsDocs.map(mapSessionDocument);
 
-    // Fallback client-side filtering to match exact legacy logic if needed,
-    // especially for 'week' which relies on locale in previous implementation.
     if (range === "week") {
       allSessions = allSessions.filter((session: CashRegisterSession) =>
         isThisWeek(new Date(session.openedAt))
@@ -254,8 +242,7 @@ export async function getAllCashRegisterSessions(searchParams: {
 }
 
 export async function deleteCashRegister(
-  sessionId: string,
-  posName: string
+  sessionId: string
 ): Promise<{ success: boolean; message: string }> {
   try {
     await connectDB();
