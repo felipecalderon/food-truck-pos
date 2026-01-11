@@ -36,7 +36,7 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
       )
     ) {
       startTransition(async () => {
-        const result = await deleteCashRegister(sessionId, posName);
+        const result = await deleteCashRegister(sessionId);
         if (result.success) {
           router.refresh();
         } else {
