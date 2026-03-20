@@ -95,7 +95,7 @@ const EXTERNAL_SALE_DEFAULTS = {
   ware_house_id: 7618,
   global_discount: null,
   global_discount_type: "$" as const,
-  type_document_sii: 33,
+  type_document_sii: 39,
 };
 
 const GEO_TIMEZONE_OFFSET = "-03:00";
