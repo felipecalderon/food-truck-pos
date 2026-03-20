@@ -1,15 +1,24 @@
 "use server";
 
-import { CashRegisterSession } from "@/types/cash-register";
-import { Sale } from "@/types/sale";
-import { isToday, isThisWeek, isThisMonth } from "date-fns";
+import { randomUUID } from "crypto";
+import { isThisMonth, isThisWeek, isToday } from "date-fns";
 import connectDB from "@/lib/db";
+import CashMovementModel, { type ICashMovement } from "@/models/CashMovement";
 import CashRegisterSessionModel, {
-  ICashRegisterSession,
+  type ICashRegisterSession,
 } from "@/models/CashRegisterSession";
 import SaleModel from "@/models/Sale";
+import type {
+  CashMovement,
+  SessionCashMovementTotals,
+} from "@/types/cash-movement";
+import type { CashRegisterSession } from "@/types/cash-register";
+import type { Sale } from "@/types/sale";
 
-function mapSessionDocument(doc: ICashRegisterSession): CashRegisterSession {
+function mapSessionDocument(
+  doc: ICashRegisterSession,
+  netCashMovements = 0,
+): CashRegisterSession {
   return {
     id: doc.sessionId,
     posName: doc.posName,
@@ -18,22 +27,88 @@ function mapSessionDocument(doc: ICashRegisterSession): CashRegisterSession {
     openingBalance: doc.openingBalance,
     closingBalance: doc.closingBalance,
     calculatedSales: doc.calculatedSales,
+    netCashMovements,
     difference: doc.difference,
     status: doc.status,
   };
 }
 
-export async function getSessionDetails(
-  sessionId: string
-): Promise<{ session: CashRegisterSession | null; sales: Sale[] }> {
+function mapCashMovementDocument(doc: ICashMovement): CashMovement {
+  return {
+    id: doc.movementId,
+    sessionId: doc.sessionId,
+    posName: doc.posName,
+    type: doc.type,
+    reason: doc.reason,
+    amount: doc.amount,
+    receiptAmount: doc.receiptAmount ?? undefined,
+    reintegratedAmount: doc.reintegratedAmount ?? undefined,
+    netImpact: doc.netImpact,
+    createdAt: doc.createdAt.toISOString(),
+  };
+}
+
+async function getSessionNetCashMovements(sessionId: string): Promise<number> {
+  const [result] = await CashMovementModel.aggregate([
+    { $match: { sessionId } },
+    { $group: { _id: null, net: { $sum: "$netImpact" } } },
+  ]);
+
+  return typeof result?.net === "number" ? result.net : 0;
+}
+
+function calculateMovementTotals(
+  movements: CashMovement[],
+): SessionCashMovementTotals {
+  return movements.reduce<SessionCashMovementTotals>(
+    (acc, movement) => {
+      if (movement.type === "WITHDRAWAL") {
+        acc.withdrawals += movement.amount;
+        acc.receipts += movement.receiptAmount ?? 0;
+        acc.reintegrations += movement.reintegratedAmount ?? 0;
+      } else {
+        acc.deposits += movement.amount;
+      }
+
+      acc.netImpact += movement.netImpact;
+      return acc;
+    },
+    {
+      withdrawals: 0,
+      deposits: 0,
+      reintegrations: 0,
+      receipts: 0,
+      netImpact: 0,
+    },
+  );
+}
+
+export async function getSessionDetails(sessionId: string): Promise<{
+  session: CashRegisterSession | null;
+  sales: Sale[];
+  cashMovements: CashMovement[];
+  cashMovementTotals: SessionCashMovementTotals;
+}> {
   await connectDB();
   const sessionDoc = await CashRegisterSessionModel.findOne({ sessionId });
 
   if (!sessionDoc) {
-    return { session: null, sales: [] };
+    return {
+      session: null,
+      sales: [],
+      cashMovements: [],
+      cashMovementTotals: {
+        withdrawals: 0,
+        deposits: 0,
+        reintegrations: 0,
+        receipts: 0,
+        netImpact: 0,
+      },
+    };
   }
 
-  const session = mapSessionDocument(sessionDoc);
+  const netCashMovements = await getSessionNetCashMovements(sessionId);
+  const session = mapSessionDocument(sessionDoc, netCashMovements);
 
   const salesDocs = await SaleModel.find({ sessionId })
     .sort({ date: -1 })
@@ -52,14 +127,24 @@ export async function getSessionDetails(
     comment: doc.comment,
   }));
 
-  return { session, sales };
+  const cashMovementDocs = await CashMovementModel.find({ sessionId })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const cashMovements = cashMovementDocs.map((doc: any) =>
+    mapCashMovementDocument(doc),
+  );
+
+  const cashMovementTotals = calculateMovementTotals(cashMovements);
+
+  return { session, sales, cashMovements, cashMovementTotals };
 }
 
 type SessionProps = Promise<CashRegisterSession | null>;
 
 export const openCashRegister = async (
   openingBalance: number,
-  posName: string
+  posName: string,
 ): Promise<CashRegisterSession> => {
   try {
     await connectDB();
@@ -120,12 +205,15 @@ export const getCurrentSession = async (posName: string): SessionProps => {
     return null;
   }
 
-  return mapSessionDocument(sessionDoc);
+  const netCashMovements = await getSessionNetCashMovements(
+    sessionDoc.sessionId,
+  );
+  return mapSessionDocument(sessionDoc, netCashMovements);
 };
 
 export const closeCashRegister = async (
   closingBalance: number,
-  posName: string
+  posName: string,
 ): Promise<CashRegisterSession> => {
   try {
     await connectDB();
@@ -147,8 +235,14 @@ export const closeCashRegister = async (
       throw new Error("No hay una sesión de caja abierta para cerrar.");
     }
 
+    const netCashMovements = await getSessionNetCashMovements(
+      sessionDoc.sessionId,
+    );
     const difference =
-      closingBalance - sessionDoc.openingBalance - sessionDoc.calculatedSales;
+      closingBalance -
+      sessionDoc.openingBalance -
+      sessionDoc.calculatedSales -
+      netCashMovements;
 
     sessionDoc.closedAt = new Date();
     sessionDoc.closingBalance = closingBalance;
@@ -159,11 +253,11 @@ export const closeCashRegister = async (
 
     if (!savedSession) {
       throw new Error(
-        "Error al guardar el cierre de caja en la base de datos."
+        "Error al guardar el cierre de caja en la base de datos.",
       );
     }
 
-    return mapSessionDocument(savedSession);
+    return mapSessionDocument(savedSession, netCashMovements);
   } catch (error) {
     console.error("Error en closeCashRegister:", error);
     if (error instanceof Error) {
@@ -181,7 +275,7 @@ export async function getAllCashRegisterSessions(searchParams: {
   try {
     await connectDB();
     const { range, from, to } = searchParams;
-    let query: any = {};
+    const query: any = {};
 
     if (range) {
       const now = new Date();
@@ -203,7 +297,7 @@ export async function getAllCashRegisterSessions(searchParams: {
           23,
           59,
           59,
-          999
+          999,
         );
         query.openedAt = { $gte: start, $lte: end };
       }
@@ -219,15 +313,15 @@ export async function getAllCashRegisterSessions(searchParams: {
 
     if (range === "week") {
       allSessions = allSessions.filter((session: CashRegisterSession) =>
-        isThisWeek(new Date(session.openedAt))
+        isThisWeek(new Date(session.openedAt)),
       );
     } else if (range === "today") {
       allSessions = allSessions.filter((session: CashRegisterSession) =>
-        isToday(new Date(session.openedAt))
+        isToday(new Date(session.openedAt)),
       );
     } else if (range == "month") {
       allSessions = allSessions.filter((session: CashRegisterSession) =>
-        isThisMonth(new Date(session.openedAt))
+        isThisMonth(new Date(session.openedAt)),
       );
     }
 
@@ -235,14 +329,151 @@ export async function getAllCashRegisterSessions(searchParams: {
   } catch (error) {
     console.error(
       "Error fetching all cash register sessions from MongoDB:",
-      error
+      error,
     );
     return [];
   }
 }
 
+export async function createCashMovement(input: {
+  posName: string;
+  type: "WITHDRAWAL" | "DEPOSIT";
+  amount: number;
+  reason: "Retiro para comprar" | "Ingreso manual";
+  receiptAmount?: number;
+}): Promise<{ success: boolean; message: string; movement?: CashMovement }> {
+  try {
+    await connectDB();
+
+    const { posName, type, amount, reason, receiptAmount } = input;
+
+    if (!posName || posName.trim() === "") {
+      return {
+        success: false,
+        message: "El nombre del punto de venta es requerido.",
+      };
+    }
+
+    if (typeof amount !== "number" || Number.isNaN(amount) || amount <= 0) {
+      return {
+        success: false,
+        message: "El monto del movimiento debe ser mayor a 0.",
+      };
+    }
+
+    const session = await CashRegisterSessionModel.findOne({
+      posName,
+      status: "OPEN",
+    });
+
+    if (!session) {
+      return {
+        success: false,
+        message: "No hay una caja abierta para registrar el movimiento.",
+      };
+    }
+
+    let netImpact = amount;
+    let normalizedReceiptAmount: number | null = null;
+    let reintegratedAmount: number | null = null;
+
+    if (type === "WITHDRAWAL") {
+      if (reason !== "Retiro para comprar") {
+        return {
+          success: false,
+          message: "El motivo del retiro no es válido.",
+        };
+      }
+
+      if (
+        typeof receiptAmount !== "number" ||
+        Number.isNaN(receiptAmount) ||
+        receiptAmount < 0
+      ) {
+        return {
+          success: false,
+          message: "Debes ingresar un monto de boleta válido.",
+        };
+      }
+
+      if (receiptAmount > amount) {
+        return {
+          success: false,
+          message: "La boleta no puede ser mayor al monto retirado.",
+        };
+      }
+
+      normalizedReceiptAmount = receiptAmount;
+      reintegratedAmount = amount - receiptAmount;
+      netImpact = -receiptAmount;
+    } else if (reason !== "Ingreso manual") {
+      return {
+        success: false,
+        message: "El motivo para agregar efectivo no es válido.",
+      };
+    }
+
+    const movementDoc = await CashMovementModel.create({
+      movementId: randomUUID(),
+      sessionId: session.sessionId,
+      posName,
+      type,
+      reason,
+      amount,
+      receiptAmount: normalizedReceiptAmount,
+      reintegratedAmount,
+      netImpact,
+      createdAt: new Date(),
+    });
+
+    if (!movementDoc) {
+      return {
+        success: false,
+        message: "No se pudo registrar el movimiento de caja.",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Movimiento de caja registrado con éxito.",
+      movement: mapCashMovementDocument(movementDoc),
+    };
+  } catch (error) {
+    console.error("Error creating cash movement:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al registrar movimiento de caja.",
+    };
+  }
+}
+
+export async function getSessionCashMovements(
+  sessionId: string,
+): Promise<CashMovement[]> {
+  try {
+    await connectDB();
+    const docs = await CashMovementModel.find({ sessionId })
+      .sort({ createdAt: -1 })
+      .lean();
+    return docs.map((doc: any) => mapCashMovementDocument(doc));
+  } catch (error) {
+    console.error("Error fetching session cash movements:", error);
+    return [];
+  }
+}
+
+export async function getSessionCashMovementTotals(
+  sessionId: string,
+): Promise<SessionCashMovementTotals> {
+  const movements = await getSessionCashMovements(sessionId);
+  return calculateMovementTotals(movements);
+}
+
 export async function deleteCashRegister(
-  sessionId: string
+  sessionId: string,
 ): Promise<{ success: boolean; message: string }> {
   try {
     await connectDB();
@@ -269,13 +500,13 @@ export async function getCashRegisterSessionsByPosName(
     range?: string;
     from?: string;
     to?: string;
-  }
+  },
 ): Promise<CashRegisterSession[]> {
   try {
     await connectDB();
     // Similar filtering logic as getAllCashRegisterSessions but constrained by posName
     const { range, from, to } = searchParams;
-    let query: any = { posName };
+    const query: any = { posName };
 
     if (range) {
       const now = new Date();
@@ -297,7 +528,7 @@ export async function getCashRegisterSessionsByPosName(
           23,
           59,
           59,
-          999
+          999,
         );
         query.openedAt = { $gte: start, $lte: end };
       }
@@ -312,15 +543,15 @@ export async function getCashRegisterSessionsByPosName(
 
     if (range === "week") {
       sessions = sessions.filter((session: CashRegisterSession) =>
-        isThisWeek(new Date(session.openedAt))
+        isThisWeek(new Date(session.openedAt)),
       );
     } else if (range === "today") {
       sessions = sessions.filter((session: CashRegisterSession) =>
-        isToday(new Date(session.openedAt))
+        isToday(new Date(session.openedAt)),
       );
     } else if (range == "month") {
       sessions = sessions.filter((session: CashRegisterSession) =>
-        isThisMonth(new Date(session.openedAt))
+        isThisMonth(new Date(session.openedAt)),
       );
     }
 
@@ -328,7 +559,7 @@ export async function getCashRegisterSessionsByPosName(
   } catch (error) {
     console.error(
       `Error fetching cash register sessions for POS ${posName} from MongoDB:`,
-      error
+      error,
     );
     return [];
   }

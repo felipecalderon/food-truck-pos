@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from "react";
 import { useCashRegisterStore } from "@/stores/cash-register";
+import { useCartStore } from "@/stores/cart";
 import { getCurrentSession } from "@/actions/cash-register";
 
 export function CashRegisterProvider({
@@ -10,16 +11,19 @@ export function CashRegisterProvider({
   children: React.ReactNode;
 }) {
   const { setSession } = useCashRegisterStore();
+  const { setCashRegisterOpen } = useCartStore();
 
   const fetchAndSetSession = useCallback(async () => {
     const posName = localStorage.getItem("pos_name");
     if (posName) {
       const session = await getCurrentSession(posName);
       setSession(session);
+      setCashRegisterOpen(session?.status === "OPEN");
     } else {
-      setSession(null); // No POS, no session
+      setSession(null);
+      setCashRegisterOpen(false);
     }
-  }, [setSession]);
+  }, [setSession, setCashRegisterOpen]);
 
   useEffect(() => {
     fetchAndSetSession();

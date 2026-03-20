@@ -1,24 +1,20 @@
 "use client";
 
-import type { Product } from "@/types/product";
-import { useCartStore } from "@/stores/cart";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { useCartStore } from "@/stores/cart";
+import { useCashRegisterStore } from "@/stores/cash-register";
+import type { Product } from "@/types/product";
 
 interface ProductListProps {
   products: Product[];
 }
 
 export function ProductList({ products }: ProductListProps) {
-  const { addToCart, isCashRegisterOpen } = useCartStore();
+  const { addToCart } = useCartStore();
+  const { session } = useCashRegisterStore();
+  const isCashRegisterOpen = session?.status === "OPEN";
 
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[75vh] p-2 overflow-x-hidden">
@@ -38,6 +34,13 @@ export function ProductList({ products }: ProductListProps) {
         >
           <CardHeader>
             <CardTitle className="text-base">{product.nombre}</CardTitle>
+            {product.references && product.references.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                {product.references
+                  .map((reference) => reference.nombre)
+                  .join(", ")}
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <p className="text-lg font-semibold">

@@ -14,7 +14,8 @@ export function CashRegisterStatus() {
     return <Badge variant="destructive">Caja cerrada</Badge>;
   }
 
-  const currentBalance = session.openingBalance + session.calculatedSales;
+  const currentBalance =
+    session.openingBalance + session.calculatedSales + session.netCashMovements;
   const formattedBalance = new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",

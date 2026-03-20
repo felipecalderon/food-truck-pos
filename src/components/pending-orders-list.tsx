@@ -1,28 +1,65 @@
 "use client";
 
-import { useOrderStore } from "@/stores/orders";
-import { useCartStore } from "@/stores/cart";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useCartStore } from "@/stores/cart";
+import { useOrderStore } from "@/stores/orders";
 
 export function PendingOrdersList() {
   const { orders, cancelOrder } = useOrderStore();
-  const { loadOrder } = useCartStore();
+  const { items, loadOrder } = useCartStore();
 
   const pendingOrders = orders.filter((order) => order.status === "PENDIENTE");
 
   const handleLoadOrder = (orderId: string) => {
     const orderToLoad = orders.find((order) => order.id === orderId);
     if (orderToLoad) {
+      if (items.length > 0) {
+        toast.warning("El carrito actual no está vacío", {
+          description:
+            "Si continúas, se reemplazará el carrito por el pedido seleccionado.",
+          action: {
+            label: "Reemplazar",
+            onClick: () => {
+              loadOrder(orderToLoad);
+              toast.success(
+                `Pedido ${orderToLoad.name} cargado en el carrito.`,
+              );
+            },
+          },
+        });
+        return;
+      }
+
       loadOrder(orderToLoad);
+      toast.success(`Pedido ${orderToLoad.name} cargado en el carrito.`);
     }
   };
 
   const handleCancelOrder = (orderId: string) => {
-    if (confirm("¿Está seguro de que desea cancelar este pedido?")) {
-      cancelOrder(orderId);
-    }
+    const order = orders.find((item) => item.id === orderId);
+    toast.warning("Cancelar pedido", {
+      description: "Esta acción quitará el pedido de la lista pendiente.",
+      action: {
+        label: "Cancelar pedido",
+        onClick: () => {
+          cancelOrder(orderId);
+          if (order) {
+            toast.success(`Pedido ${order.name} cancelado.`);
+          } else {
+            toast.success("Pedido cancelado.");
+          }
+        },
+      },
+    });
   };
 
   return (

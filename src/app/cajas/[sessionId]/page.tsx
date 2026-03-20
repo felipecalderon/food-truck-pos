@@ -1,14 +1,14 @@
+import { notFound } from "next/navigation";
 import React from "react";
 import { getSessionDetails } from "@/actions/cash-register";
 import { SalesList } from "@/components/sales-list";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { notFound } from "next/navigation";
-import { formatCurrency, formatDate } from "@/lib/utils";
 import { TopProductsCard } from "@/components/top-products-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   calculateSalesByPaymentMethod,
   getTopSoldProducts,
 } from "@/lib/caja-utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default async function SessionDetailsPage({
   params,
@@ -17,7 +17,8 @@ export default async function SessionDetailsPage({
 }) {
   const { sessionId: encodedSessionId } = await params;
   const sessionId = decodeURIComponent(encodedSessionId);
-  const { session, sales } = await getSessionDetails(sessionId);
+  const { session, sales, cashMovements, cashMovementTotals } =
+    await getSessionDetails(sessionId);
 
   if (!session) {
     notFound();
@@ -26,11 +27,14 @@ export default async function SessionDetailsPage({
   const salesByPaymentMethod = calculateSalesByPaymentMethod(sales);
   const totalSales = sales.reduce((acc, sale) => acc + sale.total, 0);
   const topProducts = getTopSoldProducts(sales);
+  const expectedCashInDrawer =
+    session.openingBalance +
+    salesByPaymentMethod.cash +
+    cashMovementTotals.netImpact;
 
   const saleDiff = () => {
     const totalCounted = session.closingBalance ?? 0;
-    const totalCash = session.openingBalance + salesByPaymentMethod.cash;
-    const diff = totalCounted - totalCash;
+    const diff = totalCounted - expectedCashInDrawer;
     return diff;
   };
 
@@ -122,10 +126,48 @@ export default async function SessionDetailsPage({
                   {formatCurrency(salesByPaymentMethod.credit)}
                 </p>
               </div>
+              <div className="flex justify-between items-center">
+                <p className="font-medium">Ventas por Transferencia</p>
+                <p className="font-semibold">
+                  {formatCurrency(salesByPaymentMethod.transfer)}
+                </p>
+              </div>
               <hr className="my-2" />
               <div className="flex justify-between items-center text-lg">
                 <p className="font-bold">Total de Ventas</p>
                 <p className="font-bold">{formatCurrency(totalSales)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-sky-50">
+            <CardHeader>
+              <CardTitle>Movimientos de Caja</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between">
+                <p>Retiros</p>
+                <p>{formatCurrency(cashMovementTotals.withdrawals)}</p>
+              </div>
+              <div className="flex justify-between">
+                <p>Boletas de Compra</p>
+                <p>{formatCurrency(cashMovementTotals.receipts)}</p>
+              </div>
+              <div className="flex justify-between">
+                <p>Reintegros</p>
+                <p>{formatCurrency(cashMovementTotals.reintegrations)}</p>
+              </div>
+              <div className="flex justify-between">
+                <p>Ingresos Manuales</p>
+                <p>{formatCurrency(cashMovementTotals.deposits)}</p>
+              </div>
+              <hr />
+              <div className="flex justify-between font-semibold">
+                <p>Impacto Neto</p>
+                <p>{formatCurrency(cashMovementTotals.netImpact)}</p>
+              </div>
+              <div className="text-xs text-gray-500">
+                Movimientos registrados: {cashMovements.length}
               </div>
             </CardContent>
           </Card>
@@ -147,14 +189,14 @@ export default async function SessionDetailsPage({
                 <p>+ Ventas en Efectivo</p>
                 <p>{formatCurrency(salesByPaymentMethod.cash)}</p>
               </div>
+              <div className="flex justify-between">
+                <p>+/- Movimientos de Caja</p>
+                <p>{formatCurrency(cashMovementTotals.netImpact)}</p>
+              </div>
               <hr />
               <div className="flex justify-between font-semibold">
                 <p>Total Esperado en Caja</p>
-                <p>
-                  {formatCurrency(
-                    session.openingBalance + salesByPaymentMethod.cash
-                  )}
-                </p>
+                <p>{formatCurrency(expectedCashInDrawer)}</p>
               </div>
               <div className="flex justify-between">
                 <p>Saldo Final Contado</p>
@@ -164,9 +206,7 @@ export default async function SessionDetailsPage({
               <div className="flex justify-between font-bold text-xl">
                 <p>Diferencia</p>
                 <p
-                  className={
-                    saleDiff() < 0 ? "text-red-500" : "text-green-700"
-                  }
+                  className={saleDiff() < 0 ? "text-red-500" : "text-green-700"}
                 >
                   {formatCurrency(saleDiff())}
                 </p>

@@ -7,7 +7,7 @@ import { ShoppingCart } from "./shopping-cart";
 import { Input } from "@/components/ui/input";
 import { useCartStore } from "@/stores/cart";
 import { useProductStore } from "@/stores/products";
-import { getCurrentSession } from "@/actions/cash-register";
+import { useCashRegisterStore } from "@/stores/cash-register";
 import { SaleReceipt } from "./sale-receipt";
 
 interface POSPageContainerProps {
@@ -16,6 +16,7 @@ interface POSPageContainerProps {
 
 export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
   const { products, setProducts } = useProductStore();
+  const { session } = useCashRegisterStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [posName, setPosName] = useState<string | null>(null);
   const { setCashRegisterOpen, showReceipt } = useCartStore();
@@ -29,13 +30,10 @@ export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
     setPosName(name);
   }, []);
 
+  // Sincronizar el estado de apertura del carrito con la sesión global
   useEffect(() => {
-    if (posName) {
-      getCurrentSession(posName).then((session) => {
-        setCashRegisterOpen(session?.status === "OPEN");
-      });
-    }
-  }, [posName, setCashRegisterOpen]);
+    setCashRegisterOpen(session?.status === "OPEN");
+  }, [session, setCashRegisterOpen]);
 
   const filteredProducts = useMemo(() => {
     if (!searchTerm) return products;
@@ -55,10 +53,10 @@ export function POSPageContainer({ initialProducts }: POSPageContainerProps) {
       const normalizedSku = p.sku.toString().toLowerCase();
 
       const nameMatches = searchKeywords.every((kw) =>
-        normalizedName.includes(kw)
+        normalizedName.includes(kw),
       );
       const skuMatches = searchKeywords.every((kw) =>
-        normalizedSku.includes(kw)
+        normalizedSku.includes(kw),
       );
 
       return nameMatches || skuMatches;

@@ -1,6 +1,10 @@
 "use client";
 
-import type { Sale } from "@/types/sale";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import { deleteSale } from "@/actions/sales";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -9,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -17,10 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { deleteSale } from "@/actions/sales";
+import type { Sale } from "@/types/sale";
 import { EditSaleDialog } from "./edit-sale-dialog";
 import { Button } from "./ui/button";
 
@@ -40,13 +40,32 @@ export function TotalSalesList({ sales }: TotalSalesListProps) {
     );
   }
 
-  const handleDelete = async (saleId: string) => {
-    if (confirm("¿Estás seguro de que quieres eliminar esta venta?")) {
-      setDeletingId(saleId);
-      await deleteSale(saleId);
-      setDeletingId(null);
-      router.refresh();
+  const executeDelete = async (saleId: string) => {
+    setDeletingId(saleId);
+    const result = await deleteSale(saleId);
+    setDeletingId(null);
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
     }
+
+    toast.success(result.message);
+    router.refresh();
+  };
+
+  const handleDelete = (saleId: string) => {
+    if (deletingId) return;
+
+    toast.warning("Eliminar venta", {
+      description: "Esta acción no se puede deshacer.",
+      action: {
+        label: "Eliminar",
+        onClick: () => {
+          void executeDelete(saleId);
+        },
+      },
+    });
   };
 
   return (

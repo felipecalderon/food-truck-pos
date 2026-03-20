@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CashRegisterSession } from "@/types/cash-register";
+import type React from "react";
+import { useTransition } from "react";
+import { toast } from "sonner";
+import { deleteCashRegister } from "@/actions/cash-register";
 import { formatCurrency } from "@/lib/utils";
+import type { CashRegisterSession } from "@/types/cash-register";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import {
   Table,
   TableBody,
@@ -12,9 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
-import { deleteCashRegister } from "@/actions/cash-register";
 
 interface CashRegisterListProps {
   sessions: CashRegisterSession[];
@@ -24,26 +26,28 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const handleDelete = (
-    e: React.MouseEvent,
-    sessionId: string,
-    posName: string
-  ) => {
+  const executeDelete = (sessionId: string) => {
+    startTransition(async () => {
+      const result = await deleteCashRegister(sessionId);
+      if (result.success) {
+        toast.success(result.message);
+        router.refresh();
+      } else {
+        toast.error(result.message);
+      }
+    });
+  };
+
+  const handleDelete = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation(); // Evita que el evento de clic se propague a la fila
-    if (
-      window.confirm(
-        "¿Estás seguro de que quieres eliminar esta sesión de caja? Esta acción no se puede deshacer."
-      )
-    ) {
-      startTransition(async () => {
-        const result = await deleteCashRegister(sessionId);
-        if (result.success) {
-          router.refresh();
-        } else {
-          alert(result.message);
-        }
-      });
-    }
+
+    toast.warning("Eliminar sesión de caja", {
+      description: "Esta acción no se puede deshacer.",
+      action: {
+        label: "Eliminar",
+        onClick: () => executeDelete(sessionId),
+      },
+    });
   };
 
   const handleRowClick = (sessionId: string) => {
@@ -105,7 +109,7 @@ export function CashRegisterList({ sessions }: CashRegisterListProps) {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={(e) => handleDelete(e, session.id, session.posName)}
+                    onClick={(e) => handleDelete(e, session.id)}
                   disabled={isPending}
                 >
                   {isPending ? "Eliminando..." : "Eliminar"}

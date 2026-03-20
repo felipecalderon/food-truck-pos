@@ -1,14 +1,15 @@
-import { PosNameSetup } from "@/components/pos-name-setup";
+import { Globe, List, ShoppingCart } from "lucide-react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
-import { Globe, ShoppingCart, List } from "lucide-react";
 import { CashRegisterStatus } from "@/components/cash-register-status";
+import { PosNameSetup } from "@/components/pos-name-setup";
 import "./globals.css";
+import Image from "next/image";
 import { CashRegisterManager } from "@/components/cash-register-manager";
 import { CashRegisterProvider } from "@/components/cash-register-provider";
-import Image from "next/image";
 import Navbar from "@/components/nav-menu";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -59,6 +60,7 @@ export default function RootLayout({
             </header>
             <main>{children}</main> <PosNameSetup />
           </div>
+          <Toaster />
         </CashRegisterProvider>
       </body>
     </html>

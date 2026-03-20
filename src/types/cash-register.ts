@@ -6,6 +6,7 @@ export interface CashRegisterSession {
   openingBalance: number; // Saldo inicial en efectivo
   closingBalance?: number; // Saldo final contado
   calculatedSales: number; // Total de ventas en efectivo registradas por el sistema
+  netCashMovements: number; // Impacto neto de movimientos de caja (retiros/ingresos)
   difference: number; // Diferencia: (closingBalance - openingBalance) - calculatedSales
-  status: 'OPEN' | 'CLOSED';
+  status: "OPEN" | "CLOSED";
 }

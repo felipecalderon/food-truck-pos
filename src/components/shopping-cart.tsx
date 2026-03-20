@@ -1,12 +1,13 @@
 "use client";
 
+import { toast } from "sonner";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useCartStore } from "@/stores/cart";
 import { useOrderStore } from "@/stores/orders";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { CartActions } from "./cart/cart-actions";
 import { CartItemsTable } from "./cart/cart-items-table";
 import { CartPayment } from "./cart/cart-payment";
 import { CartSummary } from "./cart/cart-summary";
-import { CartActions } from "./cart/cart-actions";
 
 export function ShoppingCart() {
   const {
@@ -37,22 +38,26 @@ export function ShoppingCart() {
 
     const newOrder = addOrder(items, cartTotal);
     clearCart();
-    alert(`Pedido ${newOrder.name} guardado.`);
+    toast.success(`Pedido ${newOrder.name} guardado.`);
     window.dispatchEvent(new Event("order-saved"));
   };
 
   const handleSaveSale = async () => {
     const posName = localStorage.getItem("pos_name");
     if (!posName) {
-      alert("Error: No se ha configurado un nombre para este POS.");
+      toast.error("No se ha configurado un nombre para este POS.");
       return;
     }
     const result = await saveSale(posName);
     if (result.success) {
       window.dispatchEvent(new Event("sale-completed"));
-      alert("Venta finalizada con éxito.");
+      if (result.message.includes("falló sincronización")) {
+        toast.warning(result.message);
+      } else {
+        toast.success("Venta finalizada con éxito.");
+      }
     } else {
-      alert(`Hubo un error al finalizar la venta: ${result.message}`);
+      toast.error(`Hubo un error al finalizar la venta: ${result.message}`);
     }
   };
 

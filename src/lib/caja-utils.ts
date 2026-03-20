@@ -1,19 +1,21 @@
-import { CartItem } from "@/types/cart";
-import { Sale } from "@/types/sale";
+import type { CartItem } from "@/types/cart";
+import type { Sale } from "@/types/sale";
 
 export const calculateSalesByPaymentMethod = (sales: Sale[]) => {
   return sales.reduce(
     (acc, sale) => {
       if (sale.paymentMethod === "Efectivo") {
         acc.cash += sale.total;
-      } else if (sale.paymentMethod === "Debito") {
+      } else if (sale.paymentMethod === "Débito") {
         acc.debit += sale.total;
-      } else if (sale.paymentMethod === "Credito") {
+      } else if (sale.paymentMethod === "Crédito") {
         acc.credit += sale.total;
+      } else if (sale.paymentMethod === "Transferencia") {
+        acc.transfer += sale.total;
       }
       return acc;
     },
-    { cash: 0, debit: 0, credit: 0 }
+    { cash: 0, debit: 0, credit: 0, transfer: 0 },
   );
 };
 

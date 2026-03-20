@@ -1,15 +1,16 @@
 "use client";
 
 import { useRef } from "react";
+import { toast } from "sonner";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCartStore } from "@/stores/cart";
 import { Button } from "./ui/button";
-import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   Card,
   CardContent,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "./ui/card";
 
 export function SaleReceipt() {
@@ -31,7 +32,7 @@ export function SaleReceipt() {
 
     const printWindow = window.open("", "Print", "width=450,height=700");
     if (!printWindow) {
-      alert("La ventana emergente fue bloqueada por el navegador.");
+      toast.error("La ventana emergente fue bloqueada por el navegador.");
       return;
     }
 
@@ -97,7 +98,7 @@ export function SaleReceipt() {
                 <span>${item.nombre} (x${item.quantity})</span>
                 <span>${formatCurrency(item.precio * item.quantity)}</span>
               </div>
-            `
+            `,
               )
               .join("")}
           </div>

@@ -1,8 +1,8 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { type Document, type Model, Schema } from "mongoose";
 
 const CartItemSchema = new Schema(
   {
-    sku: { type: Number, required: true },
+    sku: { type: String, required: true },
     nombre: { type: String, required: true },
     precio: { type: Number, required: true },
     quantity: { type: Number, required: true },
@@ -12,9 +12,9 @@ const CartItemSchema = new Schema(
     precioIva: { type: String },
     precioOferta: { type: String },
     stock: { type: Number },
-    activo: { type: String },
+    references: { type: [Schema.Types.Mixed] },
   },
-  { _id: false }
+  { _id: false, strict: false },
 );
 
 export interface ISale extends Document {
@@ -25,14 +25,17 @@ export interface ISale extends Document {
   total: number;
   date: Date;
   paymentMethod:
+    | "Gastos del Jefe"
     | "Efectivo"
-    | "Debito"
-    | "Credito"
-    | "Transferencia"
-    | "Credito JEFE";
+    | "Débito"
+    | "Crédito"
+    | "Transferencia";
   amountPaid: number;
   change: number;
   comment?: string;
+  externalSyncStatus: "PENDING" | "SYNCED" | "FAILED";
+  externalSyncError?: string | null;
+  externalSyncedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -48,16 +51,30 @@ const SaleSchema = new Schema<ISale>(
     paymentMethod: {
       type: String,
       required: true,
-      enum: ["Efectivo", "Debito", "Credito", "Transferencia", "Credito JEFE"],
+      enum: [
+        "Gastos del Jefe",
+        "Efectivo",
+        "Crédito",
+        "Débito",
+        "Transferencia",
+      ],
     },
     amountPaid: { type: Number, required: true },
     change: { type: Number, required: true },
     comment: { type: String },
+    externalSyncStatus: {
+      type: String,
+      required: true,
+      enum: ["PENDING", "SYNCED", "FAILED"],
+      default: "PENDING",
+    },
+    externalSyncError: { type: String, default: null },
+    externalSyncedAt: { type: Date, default: null },
   },
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 const SaleModel: Model<ISale> =

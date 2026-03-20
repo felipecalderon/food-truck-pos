@@ -11,15 +11,21 @@ export default function Navbar() {
       setPosName(localPos);
     }
   }, []);
-  if (!posName) return null;
-
   return (
     <nav className="flex items-center gap-4">
+      {posName && (
+        <Link
+          href={`/pos/${posName}`}
+          className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-black"
+        >
+          <span>Ver las ventas realizadas</span>
+        </Link>
+      )}
       <Link
-        href={`/pos/${posName}`}
+        href="/admin/products"
         className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-black"
       >
-        <span>Ver las ventas realizadas</span>
+        <span>Gestionar productos</span>
       </Link>
     </nav>
   );

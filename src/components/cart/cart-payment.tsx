@@ -5,17 +5,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { PaymentMethod } from "@/types/sale";
+import { PAYMENT_METHODS, type PaymentMethodName } from "@/types/sale";
 
 interface CartPaymentProps {
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethodName;
   amountPaid: number;
   comment: string;
   cartTotal: number;
-  setPaymentMethod: (method: PaymentMethod) => void;
+  setPaymentMethod: (method: PaymentMethodName) => void;
   setAmountPaid: (amount: number) => void;
   setComment: (comment: string) => void;
 }
+
+const ENABLED_PAYMENT_METHODS = PAYMENT_METHODS.filter(
+  (method) => method.enabled,
+);
 
 export function CartPayment({
   paymentMethod,
@@ -32,31 +36,27 @@ export function CartPayment({
         <Label className="mb-2 block">Método de Pago</Label>
         <RadioGroup
           value={paymentMethod}
-          onValueChange={(
-            value: "Efectivo" | "Debito" | "Credito" | "Transferencia"
-          ) => setPaymentMethod(value)}
+          onValueChange={(value) => {
+            const selectedMethod = ENABLED_PAYMENT_METHODS.find(
+              (method) => method.name === value,
+            );
+            if (selectedMethod) {
+              setPaymentMethod(selectedMethod.name);
+            }
+          }}
           className="flex gap-4"
         >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="Efectivo" id="r1" />
-            <Label htmlFor="r1">Efectivo</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="Debito" id="r2" />
-            <Label htmlFor="r2">Débito</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="Credito" id="r3" />
-            <Label htmlFor="r3">Crédito</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="Transferencia" id="r4" />
-            <Label htmlFor="r4">Transferencia</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="Credito JEFE" id="r5" />
-            <Label htmlFor="r5">Gastos del Jefe</Label>
-          </div>
+          {ENABLED_PAYMENT_METHODS.map((method) => (
+            <div key={method.id} className="flex items-center space-x-2">
+              <RadioGroupItem
+                value={method.name}
+                id={`payment-method-${method.id}`}
+              />
+              <Label htmlFor={`payment-method-${method.id}`}>
+                {method.name}
+              </Label>
+            </div>
+          ))}
         </RadioGroup>
       </div>
 

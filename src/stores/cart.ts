@@ -1,14 +1,14 @@
 import { create } from "zustand";
-import type { CartItem } from "@/types/cart";
-import type { Product } from "@/types/product";
-import type { Order } from "@/types/order";
 import { createSale } from "@/actions/sales";
+import type { CartItem } from "@/types/cart";
+import type { Order } from "@/types/order";
+import type { Product } from "@/types/product";
+import type { PaymentMethodName, Sale } from "@/types/sale";
 import { useOrderStore } from "./orders";
-import { PaymentMethod, Sale } from "@/types/sale";
 
 interface CartState {
   items: CartItem[];
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethodName;
   amountPaid: number;
   comment: string;
   isSaving: boolean;
@@ -22,11 +22,11 @@ interface CartState {
   clearCart: () => void;
   closeReceipt: () => void;
   loadOrder: (order: Order) => void;
-  setPaymentMethod: (method: PaymentMethod) => void;
+  setPaymentMethod: (method: PaymentMethodName) => void;
   setAmountPaid: (amount: number) => void;
   setComment: (comment: string) => void;
   saveSale: (
-    posName: string
+    posName: string,
   ) => Promise<{ success: boolean; message: string; sale?: Sale }>;
   getCartTotal: () => number;
   getChange: () => number;
@@ -47,7 +47,6 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   addToCart: (product) => {
     if (!get().isCashRegisterOpen) {
-      alert("La caja está cerrada. No se pueden añadir productos.");
       return;
     }
     set((state) => {
@@ -56,7 +55,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         const updatedItems = state.items.map((item) =>
           item.sku === product.sku
             ? { ...item, quantity: item.quantity + 1 }
-            : item
+            : item,
         );
         return { items: updatedItems };
       }
@@ -71,7 +70,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         return { items: updatedItems };
       }
       const updatedItems = state.items.map((item) =>
-        item.sku === sku ? { ...item, quantity } : item
+        item.sku === sku ? { ...item, quantity } : item,
       );
       return { items: updatedItems };
     });
@@ -86,15 +85,6 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   loadOrder: (order) => {
-    if (get().items.length > 0) {
-      if (
-        !confirm(
-          "El carrito actual no está vacío. ¿Desea reemplazarlo con el pedido seleccionado?"
-        )
-      ) {
-        return;
-      }
-    }
     set({
       items: order.items,
       loadedOrderId: order.id,
@@ -136,7 +126,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         amountPaid,
         change,
         posName,
-        comment
+        comment,
       );
 
       if (result.success && result.sale) {
@@ -160,7 +150,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   getCartTotal: () => {
     return get().items.reduce(
       (total, item) => total + item.precio * item.quantity,
-      0
+      0,
     );
   },
 
