@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { formatCurrency } from "@/lib/utils";
 import { PAYMENT_METHODS, type PaymentMethodName } from "@/types/sale";
 
 interface CartPaymentProps {
@@ -111,11 +112,8 @@ export function CartPayment({
             >
               +$10.000
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setAmountPaid(Math.floor(cartTotal))}
-            >
-              ${Math.floor(cartTotal)}
+            <Button variant="outline" onClick={() => setAmountPaid(cartTotal)}>
+              {formatCurrency(cartTotal)}
             </Button>
           </div>
         </div>

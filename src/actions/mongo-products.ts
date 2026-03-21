@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getInsumosFromGeo } from "@/actions/products";
+import { getInsumosFromGeoStrict } from "@/actions/products";
 import connectDB from "@/lib/db";
 import MongoProductModel from "@/models/MongoProduct";
 import ProductRelationModel from "@/models/ProductRelation";
@@ -90,27 +90,31 @@ function mapMongoProduct(doc: MongoProductRecord): MongoProduct {
 
 export async function getFinalProductsFromMongo(): Promise<MongoProduct[]> {
   try {
-    await connectDB();
-    const products = await MongoProductModel.find({})
-      .sort({ createdAt: -1 })
-      .lean<MongoProductRecord[]>();
-    return products.map((product) => mapMongoProduct(product));
+    const productsPromise = getFinalProductsFromMongoBase();
+    const insumos = await getInsumosFromGeoStrict();
+    const products = await productsPromise;
+
+    return await syncFinalProductsWithGeoInsumos(products, insumos);
   } catch (error) {
-    console.error("Error al obtener productos Mongo:", error);
-    return [];
+    console.warn("No se pudo sincronizar productos finales con Geo:", error);
+    return getFinalProductsFromMongoBase();
   }
 }
 
 export async function getPOSFinalProducts(): Promise<Product[]> {
   try {
-    const [finalProducts, insumos] = await Promise.all([
-      getFinalProductsFromMongo(),
-      getInsumosFromGeo(),
-    ]);
+    const finalProductsPromise = getFinalProductsFromMongoBase();
+    const insumos = await getInsumosFromGeoStrict();
+    const finalProducts = await finalProductsPromise;
+
+    const cleanedFinalProducts = await syncFinalProductsWithGeoInsumos(
+      finalProducts,
+      insumos,
+    );
 
     const insumosBySku = new Map(insumos.map((insumo) => [insumo.sku, insumo]));
 
-    return finalProducts.map((finalProduct) => {
+    return cleanedFinalProducts.map((finalProduct) => {
       const references = finalProduct.associatedInsumos
         .map((insumo) => insumosBySku.get(insumo.sku))
         .filter((insumo): insumo is Product => !!insumo);
@@ -125,9 +129,86 @@ export async function getPOSFinalProducts(): Promise<Product[]> {
       };
     });
   } catch (error) {
-    console.error("Error al obtener productos POS desde Mongo:", error);
-    return [];
+    console.warn("No se pudo resolver Geo para productos POS:", error);
+    const finalProducts = await getFinalProductsFromMongoBase();
+
+    return finalProducts.map((finalProduct) => ({
+      sku: finalProduct.sku,
+      nombre: finalProduct.nombre,
+      categoria: finalProduct.categoria,
+      precio: finalProduct.precio,
+      stock: finalProduct.stock,
+      references: [],
+    }));
   }
+}
+
+async function getFinalProductsFromMongoBase(): Promise<MongoProduct[]> {
+  await connectDB();
+  const products = await MongoProductModel.find({})
+    .sort({ createdAt: -1 })
+    .lean<MongoProductRecord[]>();
+
+  return products.map((product) => mapMongoProduct(product));
+}
+
+async function syncFinalProductsWithGeoInsumos(
+  products: MongoProduct[],
+  insumos: Product[],
+): Promise<MongoProduct[]> {
+  if (insumos.length === 0) {
+    console.warn(
+      "Geo devolvió 0 insumos; se omite la limpieza para evitar borrar asociaciones válidas.",
+    );
+    return products;
+  }
+
+  const validInsumoSkus = new Set(insumos.map((insumo) => insumo.sku));
+  let changed = false;
+
+  await connectDB();
+
+  for (const product of products) {
+    const removedSkus = product.associatedInsumos
+      .filter((insumo) => !validInsumoSkus.has(insumo.sku))
+      .map((insumo) => insumo.sku);
+
+    if (removedSkus.length === 0) continue;
+
+    const cleanedAssociatedInsumos = product.associatedInsumos.filter(
+      (insumo) => validInsumoSkus.has(insumo.sku),
+    );
+
+    console.warn(
+      "SKU de insumo eliminado en API externa, limpiando producto final",
+      {
+        parentSku: product.sku,
+        removedSkus,
+      },
+    );
+
+    changed = true;
+    product.associatedInsumos = cleanedAssociatedInsumos;
+    product.associatedSkus = cleanedAssociatedInsumos.map(
+      (insumo) => insumo.sku,
+    );
+
+    await MongoProductModel.findOneAndUpdate(
+      { sku: product.sku },
+      {
+        associatedInsumos: cleanedAssociatedInsumos,
+        associatedSkus: product.associatedSkus,
+      },
+      { new: true },
+    );
+  }
+
+  if (changed) {
+    revalidatePath("/");
+    revalidatePath("/admin/products");
+  }
+
+  return products;
 }
 
 export async function createMongoProduct(

@@ -71,17 +71,21 @@ async function fetchAllRawInsumosFromGeo(): Promise<RawProduct[]> {
  */
 export async function getInsumosFromGeo(): Promise<Product[]> {
   try {
-    const allRawProducts = await fetchAllRawInsumosFromGeo();
-
-    // 2. Obtener las relaciones desde MongoDB
-    const relationsMap = await getAllProductRelationsMap();
-
-    // 3. Parsear y mezclar
-    return parseRawWithRelations(allRawProducts, relationsMap);
+    return await getInsumosFromGeoStrict();
   } catch (error) {
     console.error("Error fetching or processing insumos:", error);
     return [];
   }
+}
+
+export async function getInsumosFromGeoStrict(): Promise<Product[]> {
+  const allRawProducts = await fetchAllRawInsumosFromGeo();
+
+  // 2. Obtener las relaciones desde MongoDB
+  const relationsMap = await getAllProductRelationsMap();
+
+  // 3. Parsear y mezclar
+  return parseRawWithRelations(allRawProducts, relationsMap);
 }
 
 export async function getRawInsumosFromGeo(): Promise<RawProduct[]> {

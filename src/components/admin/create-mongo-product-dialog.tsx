@@ -7,7 +7,6 @@ import {
   createMongoProduct,
   updateMongoProduct,
 } from "@/actions/mongo-products";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +25,39 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { InsumoRequirement, MongoProduct, Product } from "@/types/product";
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenizeSearch(value: string) {
+  return normalizeText(value).split(" ").filter(Boolean);
+}
+
+function matchesInsumoSearch(insumo: Product, searchTerm: string) {
+  const queryTokens = tokenizeSearch(searchTerm);
+  if (queryTokens.length === 0) return false;
+
+  const haystackTokens = tokenizeSearch(
+    `${insumo.nombre} ${insumo.sku} ${insumo.categoria}`,
+  );
+  const haystackJoined = haystackTokens.join(" ");
+
+  return queryTokens.every(
+    (queryToken) =>
+      haystackTokens.some(
+        (haystackToken) =>
+          haystackToken.includes(queryToken) ||
+          queryToken.includes(haystackToken),
+      ) || haystackJoined.includes(queryToken),
+  );
+}
 
 interface CreateMongoProductDialogProps {
   allInsumos: Product[];
@@ -59,14 +91,10 @@ export function CreateMongoProductDialog({
   const isEditMode = mode === "edit";
 
   const filteredInsumos = useMemo(() => {
-    if (!searchTerm.trim()) return [];
-    const term = searchTerm.toLowerCase();
+    if (!normalizeText(searchTerm)) return [];
+
     return allInsumos
-      .filter(
-        (insumo) =>
-          insumo.nombre.toLowerCase().includes(term) ||
-          insumo.sku.toLowerCase().includes(term),
-      )
+      .filter((insumo) => matchesInsumoSearch(insumo, searchTerm))
       .slice(0, 15);
   }, [allInsumos, searchTerm]);
 
@@ -254,68 +282,91 @@ export function CreateMongoProductDialog({
           />
         </div>
 
-        <div className="flex flex-wrap gap-2 min-h-[40px] p-2 border rounded-md bg-muted/30">
+        <div className="max-h-52 overflow-y-auto p-2 border rounded-md bg-muted/30">
           {selectedInsumos.length === 0 && (
             <p className="text-xs text-muted-foreground italic">
               Sin insumos asociados.
             </p>
           )}
-          {selectedInsumos.map((insumo) => (
-            <Badge
-              key={insumo.sku}
-              variant="secondary"
-              className="pl-2 pr-1 py-1 gap-1"
-            >
-              <span className="mr-1">{insumo.nombre}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-4 w-4 rounded-full"
-                onClick={() => decreaseInsumoQuantity(insumo.sku)}
-                disabled={isPending}
+          <div className="space-y-2">
+            {selectedInsumos.map((insumo) => (
+              <div
+                key={insumo.sku}
+                className="flex flex-col gap-2 rounded-md border bg-background p-2 md:flex-row md:items-center md:justify-between"
               >
-                <Minus className="h-3 w-3" />
-              </Button>
-              <Input
-                type="number"
-                min="1"
-                step="1"
-                value={insumo.quantity}
-                onChange={(e) =>
-                  setInsumoQuantity(insumo.sku, Number(e.target.value))
-                }
-                className="h-6 w-16 px-2 text-xs"
-                disabled={isPending}
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-4 w-4 rounded-full"
-                onClick={() => increaseInsumoQuantity(insumo.sku)}
-                disabled={isPending}
-              >
-                <Plus className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-4 w-4 rounded-full hover:bg-destructive hover:text-white"
-                onClick={() => removeInsumo(insumo.sku)}
-                disabled={isPending}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ))}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {insumo.nombre}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground font-mono">
+                    {insumo.sku}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 self-end md:self-auto">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => decreaseInsumoQuantity(insumo.sku)}
+                    disabled={isPending}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={insumo.quantity}
+                    onChange={(e) =>
+                      setInsumoQuantity(insumo.sku, Number(e.target.value))
+                    }
+                    className="h-8 w-20 px-2 text-xs"
+                    disabled={isPending}
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => increaseInsumoQuantity(insumo.sku)}
+                    disabled={isPending}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => removeInsumo(insumo.sku)}
+                    disabled={isPending}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          {searchTerm && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setSearchTerm("")}
+              className="absolute right-1 top-1.5 h-7 w-7 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+              aria-label="Limpiar búsqueda"
+              disabled={isPending}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
           <Input
             placeholder="Buscar insumos por nombre o SKU..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
+            className="pl-8 pr-9"
             disabled={isPending}
           />
         </div>

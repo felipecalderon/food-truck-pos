@@ -66,9 +66,7 @@ export function ShoppingCart() {
   const isSaleDisabled =
     items.length === 0 ||
     isSaving ||
-    (isOrderLoaded &&
-      paymentMethod === "Efectivo" &&
-      amountPaid < Math.floor(cartTotal));
+    (isOrderLoaded && paymentMethod === "Efectivo" && amountPaid < cartTotal);
 
   return (
     <div className="flex flex-col gap-6">

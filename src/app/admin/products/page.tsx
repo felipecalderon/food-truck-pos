@@ -3,6 +3,8 @@ import { getInsumosFromGeo } from "@/actions/products";
 import { ProductAdminList } from "@/components/admin/product-admin-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminProductsPage() {
   const [insumos, finalProducts] = await Promise.all([
     getInsumosFromGeo(),

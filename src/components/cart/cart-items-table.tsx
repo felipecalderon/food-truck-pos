@@ -60,7 +60,7 @@ export function CartItemsTable({ items, updateQuantity }: CartItemsTableProps) {
                 </div>
               </TableCell>
               <TableCell className="text-right">
-                {formatCurrency(Math.floor(item.precio) * item.quantity)}
+                {formatCurrency(item.precio * item.quantity)}
               </TableCell>
             </TableRow>
           ))

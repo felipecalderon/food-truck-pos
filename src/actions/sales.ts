@@ -144,8 +144,12 @@ function addInsumoAmount(
   amountBySku.set(sku, (amountBySku.get(sku) ?? 0) + amount);
 }
 
+function toCents(value: number) {
+  return Math.round(value * 100);
+}
+
 function roundTo2Decimals(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+  return Math.round(value * 100) / 100;
 }
 
 function buildExternalCommentFromCart(cart: CartItem[]): string {
@@ -246,18 +250,22 @@ async function buildExternalSalePayload(
         continue;
       }
 
-      const grossPerInsumoUnit = cartItem.precio / totalInsumoUnitsPerFinal;
+      const totalGrossItemCents = toCents(cartItem.precio) * cartQuantity;
+      let assignedCents = 0;
 
-      for (const associatedInsumo of associatedInsumos) {
+      associatedInsumos.forEach((associatedInsumo, index) => {
         const insumoUnits = associatedInsumo.quantity * cartQuantity;
+        const isLastInsumo = index === associatedInsumos.length - 1;
+        const grossCents = isLastInsumo
+          ? totalGrossItemCents - assignedCents
+          : Math.floor(
+              (totalGrossItemCents * insumoUnits) / totalInsumoUnitsPerFinal,
+            );
 
         addInsumoQuantity(quantityBySku, associatedInsumo.sku, insumoUnits);
-        addInsumoAmount(
-          grossAmountBySku,
-          associatedInsumo.sku,
-          grossPerInsumoUnit * insumoUnits,
-        );
-      }
+        addInsumoAmount(grossAmountBySku, associatedInsumo.sku, grossCents);
+        assignedCents += grossCents;
+      });
       continue;
     }
 
@@ -265,7 +273,7 @@ async function buildExternalSalePayload(
     addInsumoAmount(
       grossAmountBySku,
       cartItem.sku,
-      cartItem.precio * cartQuantity,
+      toCents(cartItem.precio) * cartQuantity,
     );
   }
 
@@ -284,7 +292,7 @@ async function buildExternalSalePayload(
 
     const totalGrossAmount = grossAmountBySku.get(sku) ?? 0;
     const grossUnitPrice =
-      quantity > 0 ? roundTo2Decimals(totalGrossAmount / quantity) : 0;
+      quantity > 0 ? roundTo2Decimals(totalGrossAmount / quantity / 100) : 0;
     const netUnitPrice =
       grossUnitPrice > 0 ? roundTo2Decimals(grossUnitPrice / IVA_FACTOR) : 0;
 
