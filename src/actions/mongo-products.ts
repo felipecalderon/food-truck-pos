@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getPosProductVisibilityMap } from "@/actions/pos-product-visibility";
 import { getInsumosFromGeoStrict } from "@/actions/products";
 import connectDB from "@/lib/db";
 import MongoProductModel from "@/models/MongoProduct";
@@ -102,10 +103,16 @@ export async function getFinalProductsFromMongo(): Promise<MongoProduct[]> {
 }
 
 export async function getPOSFinalProducts(): Promise<Product[]> {
+  return getPOSProducts();
+}
+
+export async function getPOSProducts(): Promise<Product[]> {
   try {
-    const finalProductsPromise = getFinalProductsFromMongoBase();
-    const insumos = await getInsumosFromGeoStrict();
-    const finalProducts = await finalProductsPromise;
+    const [finalProducts, insumos, visibilityMap] = await Promise.all([
+      getFinalProductsFromMongoBase(),
+      getInsumosFromGeoStrict(),
+      getPosProductVisibilityMap(),
+    ]);
 
     const cleanedFinalProducts = await syncFinalProductsWithGeoInsumos(
       finalProducts,
@@ -114,20 +121,46 @@ export async function getPOSFinalProducts(): Promise<Product[]> {
 
     const insumosBySku = new Map(insumos.map((insumo) => [insumo.sku, insumo]));
 
-    return cleanedFinalProducts.map((finalProduct) => {
-      const references = finalProduct.associatedInsumos
-        .map((insumo) => insumosBySku.get(insumo.sku))
-        .filter((insumo): insumo is Product => !!insumo);
+    const finalProductsForPos: Product[] = cleanedFinalProducts.map(
+      (finalProduct) => {
+        const references = finalProduct.associatedInsumos
+          .map((insumo) => insumosBySku.get(insumo.sku))
+          .filter((insumo): insumo is Product => !!insumo);
 
-      return {
-        sku: finalProduct.sku,
-        nombre: finalProduct.nombre,
-        categoria: finalProduct.categoria,
-        precio: finalProduct.precio,
-        stock: finalProduct.stock,
-        references,
-      };
+        return {
+          sku: finalProduct.sku,
+          nombre: finalProduct.nombre,
+          categoria: finalProduct.categoria,
+          precio: finalProduct.precio,
+          stock: finalProduct.stock,
+          source: "mongo",
+          references,
+        };
+      },
+    );
+
+    const visibleExternalProducts: Product[] = insumos
+      .filter((product) => visibilityMap[product.sku]?.showInPos)
+      .map((product) => {
+        const mapping = visibilityMap[product.sku];
+
+        return {
+          ...product,
+          nombre: mapping?.posLabel?.trim() || product.nombre,
+          source: "geo",
+        };
+      });
+
+    const mergedProducts = [...finalProductsForPos, ...visibleExternalProducts];
+    const productsBySku = new Map<string, Product>();
+
+    mergedProducts.forEach((product) => {
+      if (!productsBySku.has(product.sku)) {
+        productsBySku.set(product.sku, product);
+      }
     });
+
+    return Array.from(productsBySku.values());
   } catch (error) {
     console.warn("No se pudo resolver Geo para productos POS:", error);
     const finalProducts = await getFinalProductsFromMongoBase();
@@ -138,6 +171,7 @@ export async function getPOSFinalProducts(): Promise<Product[]> {
       categoria: finalProduct.categoria,
       precio: finalProduct.precio,
       stock: finalProduct.stock,
+      source: "mongo",
       references: [],
     }));
   }

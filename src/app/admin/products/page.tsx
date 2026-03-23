@@ -1,4 +1,5 @@
 import { getFinalProductsFromMongo } from "@/actions/mongo-products";
+import { getPosProductVisibilityMap } from "@/actions/pos-product-visibility";
 import { getInsumosFromGeo } from "@/actions/products";
 import { ProductAdminList } from "@/components/admin/product-admin-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export const dynamic = "force-dynamic";
 
 export default async function AdminProductsPage() {
-  const [insumos, finalProducts] = await Promise.all([
+  const [insumos, finalProducts, posVisibilityMap] = await Promise.all([
     getInsumosFromGeo(),
     getFinalProductsFromMongo(),
+    getPosProductVisibilityMap(),
   ]);
 
   return (
@@ -31,6 +33,7 @@ export default async function AdminProductsPage() {
           <ProductAdminList
             products={insumos}
             initialFinalProducts={finalProducts}
+            initialPosVisibilityMap={posVisibilityMap}
           />
         </CardContent>
       </Card>

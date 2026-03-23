@@ -56,6 +56,7 @@ export interface Product {
   categoria: string;
   precio: number;
   stock: number;
+  source?: "geo" | "mongo";
   references?: Product[];
 }
 

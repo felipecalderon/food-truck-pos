@@ -34,6 +34,13 @@ export function ProductList({ products }: ProductListProps) {
         >
           <CardHeader>
             <CardTitle className="text-base">{product.nombre}</CardTitle>
+            {product.source && (
+              <Badge variant="outline" className="w-fit text-[10px] uppercase">
+                {product.source === "mongo"
+                  ? "Producto Final"
+                  : "Producto de Relbase"}
+              </Badge>
+            )}
             {product.references && product.references.length > 0 && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                 {product.references

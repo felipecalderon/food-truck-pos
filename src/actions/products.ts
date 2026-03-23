@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { getAllProductRelationsMap } from "@/actions/product-relations";
 import { AUTHORIZATION, BACKEND_URL, COMPANY } from "@/common/enviroments";
 import { sleep } from "@/lib/utils";
@@ -71,7 +72,7 @@ async function fetchAllRawInsumosFromGeo(): Promise<RawProduct[]> {
  */
 export async function getInsumosFromGeo(): Promise<Product[]> {
   try {
-    return await getInsumosFromGeoStrict();
+    return await getInsumosFromGeoStrictCached();
   } catch (error) {
     console.error("Error fetching or processing insumos:", error);
     return [];
@@ -79,6 +80,10 @@ export async function getInsumosFromGeo(): Promise<Product[]> {
 }
 
 export async function getInsumosFromGeoStrict(): Promise<Product[]> {
+  return getInsumosFromGeoStrictCached();
+}
+
+const getInsumosFromGeoStrictCached = cache(async (): Promise<Product[]> => {
   const allRawProducts = await fetchAllRawInsumosFromGeo();
 
   // 2. Obtener las relaciones desde MongoDB
@@ -86,7 +91,7 @@ export async function getInsumosFromGeoStrict(): Promise<Product[]> {
 
   // 3. Parsear y mezclar
   return parseRawWithRelations(allRawProducts, relationsMap);
-}
+});
 
 export async function getRawInsumosFromGeo(): Promise<RawProduct[]> {
   try {
@@ -114,6 +119,7 @@ function parseRawWithRelations(
       (acc: number, inventory: { stock: number }) => acc + inventory.stock,
       0,
     ),
+    source: "geo",
   }));
 
   const productsDict: Record<string, Product> = {};

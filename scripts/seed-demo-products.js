@@ -25,7 +25,7 @@ function createNormalizedRecord(seed) {
   return {
     sku: seed.sku.trim(),
     nombre: seed.nombre.trim(),
-    categoria: seed.categoria.trim() || "Demo",
+    categoria: seed.categoria.trim() || "Final",
     precio: Number(seed.precio) || 0,
     stock: 0,
     associatedInsumos,

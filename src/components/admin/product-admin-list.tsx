@@ -10,6 +10,10 @@ import {
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteMongoProduct } from "@/actions/mongo-products";
+import {
+  type PosProductVisibility,
+  savePosProductVisibilityBatch,
+} from "@/actions/pos-product-visibility";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,15 +38,23 @@ import { ProductRelationDialog } from "./product-relation-dialog";
 interface ProductAdminListProps {
   products: Product[];
   initialFinalProducts: MongoProduct[];
+  initialPosVisibilityMap: Record<string, PosProductVisibility>;
 }
 
 export function ProductAdminList({
   products: initialProducts,
   initialFinalProducts,
+  initialPosVisibilityMap,
 }: ProductAdminListProps) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [finalProducts, setFinalProducts] =
     useState<MongoProduct[]>(initialFinalProducts);
+  const [posVisibilityMap, setPosVisibilityMap] = useState(
+    initialPosVisibilityMap,
+  );
+  const [posVisibilityBaseline, setPosVisibilityBaseline] = useState(
+    initialPosVisibilityMap,
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -52,6 +64,7 @@ export function ProductAdminList({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deletingSku, setDeletingSku] = useState<string | null>(null);
   const [isDeletingPending, startDeleteTransition] = useTransition();
+  const [isPosSavingPending, startPosSaveTransition] = useTransition();
 
   // Sincronizar estado local si las props cambian (fuente de verdad del servidor)
   useEffect(() => {
@@ -61,6 +74,11 @@ export function ProductAdminList({
   useEffect(() => {
     setFinalProducts(initialFinalProducts);
   }, [initialFinalProducts]);
+
+  useEffect(() => {
+    setPosVisibilityMap(initialPosVisibilityMap);
+    setPosVisibilityBaseline(initialPosVisibilityMap);
+  }, [initialPosVisibilityMap]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(
@@ -80,6 +98,98 @@ export function ProductAdminList({
     }
 
     return (product.associatedSkus ?? []).map((sku) => ({ sku, quantity: 1 }));
+  };
+
+  const pendingPosChanges = useMemo(() => {
+    return products.reduce((count, product) => {
+      const current = posVisibilityMap[product.sku];
+      const baseline = posVisibilityBaseline[product.sku];
+      const currentLabel = current?.posLabel?.trim() || product.nombre;
+      const baselineLabel = baseline?.posLabel?.trim() || product.nombre;
+
+      if (
+        current?.showInPos !== (baseline?.showInPos ?? false) ||
+        currentLabel !== baselineLabel
+      ) {
+        return count + 1;
+      }
+
+      return count;
+    }, 0);
+  }, [posVisibilityBaseline, posVisibilityMap, products]);
+
+  const updatePosVisibility = (
+    sku: string,
+    patch: Partial<PosProductVisibility>,
+  ) => {
+    setPosVisibilityMap((prev) => {
+      const current = prev[sku] ?? {
+        externalSku: sku,
+        showInPos: false,
+        posLabel: "",
+      };
+
+      return {
+        ...prev,
+        [sku]: {
+          ...current,
+          ...patch,
+          externalSku: sku,
+        },
+      };
+    });
+  };
+
+  const applyPosChanges = () => {
+    const pendingRows = products
+      .map((product) => {
+        const current = posVisibilityMap[product.sku];
+        const baseline = posVisibilityBaseline[product.sku];
+        const currentLabel = current?.posLabel?.trim() || product.nombre;
+        const baselineLabel = baseline?.posLabel?.trim() || product.nombre;
+
+        const changed =
+          current?.showInPos !== (baseline?.showInPos ?? false) ||
+          currentLabel !== baselineLabel;
+
+        if (!changed) return null;
+
+        return {
+          externalSku: product.sku,
+          showInPos: current?.showInPos ?? false,
+          posLabel: currentLabel || product.nombre,
+        };
+      })
+      .filter(
+        (
+          item,
+        ): item is {
+          externalSku: string;
+          showInPos: boolean;
+          posLabel: string;
+        } => item !== null,
+      );
+
+    if (pendingRows.length === 0) {
+      toast.info("No hay cambios de POS para guardar.");
+      return;
+    }
+
+    const snapshot = posVisibilityMap;
+
+    startPosSaveTransition(async () => {
+      const result = await savePosProductVisibilityBatch(pendingRows);
+
+      if (!result.success) {
+        toast.error(result.message);
+        return;
+      }
+
+      setPosVisibilityBaseline(snapshot);
+      toast.success(
+        `${result.message} (${result.updatedCount} cambios guardados)`,
+      );
+    });
   };
 
   const handleEditRelations = (product: Product) => {
@@ -145,7 +255,8 @@ export function ProductAdminList({
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            Cada producto debe tener al menos un insumo.
+            Cada producto debe tener al menos un insumo. Desde aquí también
+            puedes activar o desactivar su visibilidad en POS.
           </p>
           <Button onClick={() => setIsCreateDialogOpen(true)}>
             Crear producto
@@ -243,7 +354,7 @@ export function ProductAdminList({
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -253,8 +364,18 @@ export function ProductAdminList({
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="text-sm text-muted-foreground">
-          Mostrando {filteredProducts.length} de {products.length} insumos
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-muted-foreground">
+            Mostrando {filteredProducts.length} de {products.length} insumos
+          </div>
+          <Button
+            onClick={applyPosChanges}
+            disabled={isPosSavingPending || pendingPosChanges === 0}
+          >
+            {isPosSavingPending
+              ? "Aplicando..."
+              : `Aplicar POS${pendingPosChanges > 0 ? ` (${pendingPosChanges})` : ""}`}
+          </Button>
         </div>
       </div>
 
@@ -269,6 +390,8 @@ export function ProductAdminList({
               <TableHead>Insumo</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Stock</TableHead>
+              <TableHead>POS</TableHead>
+              <TableHead>Etiqueta POS</TableHead>
               <TableHead>Relaciones</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -277,7 +400,7 @@ export function ProductAdminList({
             {filteredProducts.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={8}
                   className="text-center py-10 text-muted-foreground"
                 >
                   No se encontraron productos.
@@ -299,6 +422,43 @@ export function ProductAdminList({
                   >
                     {product.stock}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-border"
+                      checked={Boolean(
+                        posVisibilityMap[product.sku]?.showInPos,
+                      )}
+                      onChange={(e) =>
+                        updatePosVisibility(product.sku, {
+                          showInPos: e.target.checked,
+                          posLabel:
+                            posVisibilityMap[product.sku]?.posLabel ||
+                            product.nombre,
+                        })
+                      }
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {posVisibilityMap[product.sku]?.showInPos
+                        ? "Visible"
+                        : "Oculto"}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Input
+                    value={
+                      posVisibilityMap[product.sku]?.posLabel ?? product.nombre
+                    }
+                    onChange={(e) =>
+                      updatePosVisibility(product.sku, {
+                        posLabel: e.target.value,
+                      })
+                    }
+                    placeholder="Nombre en POS"
+                  />
                 </TableCell>
                 <TableCell>
                   {product.references && product.references.length > 0 ? (

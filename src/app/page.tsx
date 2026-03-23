@@ -1,8 +1,5 @@
 import { redirect } from "next/navigation";
-import {
-  getFinalProductsFromMongo,
-  getPOSFinalProducts,
-} from "@/actions/mongo-products";
+import { getPOSFinalProducts } from "@/actions/mongo-products";
 import ErrorComponent from "@/components/global-error";
 import { PendingOrdersList } from "@/components/pending-orders-list";
 import { POSPageContainer } from "@/components/pos-page-container";
