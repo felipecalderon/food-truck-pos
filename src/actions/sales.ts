@@ -402,8 +402,12 @@ export async function getAllSales(searchParams: {
 }): Promise<Sale[]> {
   try {
     await connectDB();
-    const { range, from, to } = searchParams;
+    let { range, from, to } = searchParams;
     const query: any = {};
+
+    if (!range && !from && !to) {
+      range = "month";
+    }
 
     if (range) {
       const now = new Date();
@@ -416,6 +420,7 @@ export async function getAllSales(searchParams: {
         start.setHours(0, 0, 0, 0);
         const end = new Date(now.setDate(start.getDate() + 6));
         end.setHours(23, 59, 59, 999);
+        query.date = { $gte: start, $lte: end };
       } else if (range === "month") {
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
         const end = new Date(

@@ -76,6 +76,7 @@ export function TotalSalesList({ sales }: TotalSalesListProps) {
           <TableHead>Nombre POS</TableHead>
           <TableHead>Fecha</TableHead>
           <TableHead>Productos</TableHead>
+          <TableHead>Forma de pago</TableHead>
           <TableHead className="text-right">Total</TableHead>
           <TableHead>Acciones</TableHead>
         </TableRow>
@@ -97,6 +98,11 @@ export function TotalSalesList({ sales }: TotalSalesListProps) {
                     {sale.items
                       .map((item) => `${item.nombre} (x${item.quantity})`)
                       .join(", ")}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {sale.paymentMethod ?? "Sin info"}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right font-semibold">
                     {formatCurrency(sale.total)}
