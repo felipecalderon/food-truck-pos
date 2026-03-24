@@ -83,7 +83,7 @@ type ExternalSalePayload = {
 const EXTERNAL_SALE_DEFAULTS = {
   type_document: 1001,
   customer_id: 9867386,
-  address: "prueba 23",
+  address: "Temuco",
   city_id: 31,
   commune_id: 63,
   is_str_city_and_comune: false,
@@ -96,6 +96,7 @@ const EXTERNAL_SALE_DEFAULTS = {
   global_discount: null,
   global_discount_type: "$" as const,
   type_document_sii: 39,
+  paid: true,
 };
 
 const GEO_TIMEZONE_OFFSET = "-03:00";
