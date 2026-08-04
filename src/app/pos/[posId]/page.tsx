@@ -18,10 +18,20 @@ interface PosCajasPageProps {
 const RANGE_LABELS: Record<string, string> = {
   today: "Hoy",
   week: "Esta Semana",
-  month: "Este Mes",
   last3months: "Últimos 3 Meses",
   lastYear: "Último Año",
 };
+
+/**
+ * Calcula el `from` y `to` del mes actual como fallback cuando no hay parámetros en la URL.
+ * Esto mantiene consistencia con los selectores de mes/año del cliente.
+ */
+function getDefaultMonthRange(): { from: string; to: string } {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
 
 export default async function PosCajasPage({
   params,
@@ -31,14 +41,25 @@ export default async function PosCajasPage({
   const searchPrms = await searchParams;
   const strPosId = decodeURIComponent(posId);
 
-  // Default to 'month' if no range is specified
-  const range = searchPrms.range || "month";
-  const effectiveSearchParams = { ...searchPrms, range };
+  // Si no hay ningún parámetro, usa el mes actual como default (igual que los selects)
+  const hasParams = searchPrms.range || searchPrms.from || searchPrms.to;
+  const effectiveSearchParams = hasParams
+    ? searchPrms
+    : { ...getDefaultMonthRange() };
 
   const sessions: CashRegisterSession[] =
     await getCashRegisterSessionsByPosName(strPosId, effectiveSearchParams);
 
-  const rangeLabel = RANGE_LABELS[range] || "Período seleccionado";
+  // Determina la etiqueta del período mostrado
+  let rangeLabel = "Período seleccionado";
+  if (searchPrms.range) {
+    rangeLabel = RANGE_LABELS[searchPrms.range] ?? "Período seleccionado";
+  } else if (effectiveSearchParams.from) {
+    const fromDate = new Date(effectiveSearchParams.from);
+    const mesNombre = fromDate.toLocaleDateString("es-CL", { month: "long" });
+    const año = fromDate.getFullYear();
+    rangeLabel = `${mesNombre.charAt(0).toUpperCase()}${mesNombre.slice(1)} ${año}`;
+  }
 
   return (
     <div className="container mx-auto py-10 px-8">

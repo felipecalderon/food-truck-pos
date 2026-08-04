@@ -14,11 +14,20 @@ interface TotalSalesPageProps {
   }>;
 }
 
+function getDefaultMonthRange(): { from: string; to: string } {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
 export default async function TotalSalesPage({
   searchParams,
 }: TotalSalesPageProps) {
   const params = await searchParams;
-  const sales = await getAllSales(params);
+  const hasParams = params.range || params.from || params.to;
+  const effectiveParams = hasParams ? params : getDefaultMonthRange();
+  const sales = await getAllSales(effectiveParams);
 
   const totalRevenue = sales.reduce((acc, sale) => acc + sale.total, 0);
   const totalSalesCount = sales.length;
