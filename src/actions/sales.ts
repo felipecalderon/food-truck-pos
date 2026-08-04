@@ -3,7 +3,16 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { format, isThisMonth, isThisWeek, isToday } from "date-fns";
+import {
+  endOfDay,
+  format,
+  isThisMonth,
+  isThisWeek,
+  isToday,
+  startOfDay,
+  subMonths,
+  subYears,
+} from "date-fns";
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/actions/cash-register";
 import { getRawInsumosFromGeo } from "@/actions/products";
@@ -412,13 +421,15 @@ export async function getAllSales(searchParams: {
     if (range) {
       const now = new Date();
       if (range === "today") {
-        const start = new Date(now.setHours(0, 0, 0, 0));
-        const end = new Date(now.setHours(23, 59, 59, 999));
+        const start = startOfDay(now);
+        const end = endOfDay(now);
         query.date = { $gte: start, $lte: end };
       } else if (range === "week") {
-        const start = new Date(now.setDate(now.getDate() - now.getDay()));
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay());
         start.setHours(0, 0, 0, 0);
-        const end = new Date(now.setDate(start.getDate() + 6));
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
         end.setHours(23, 59, 59, 999);
         query.date = { $gte: start, $lte: end };
       } else if (range === "month") {
@@ -433,6 +444,14 @@ export async function getAllSales(searchParams: {
           999,
         );
         query.date = { $gte: start, $lte: end };
+      } else if (range === "last3months") {
+        const start = startOfDay(subMonths(now, 3));
+        const end = endOfDay(now);
+        query.date = { $gte: start, $lte: end };
+      } else if (range === "lastYear") {
+        const start = startOfDay(subYears(now, 1));
+        const end = endOfDay(now);
+        query.date = { $gte: start, $lte: end };
       }
     } else if (from && to) {
       query.date = { $gte: new Date(from), $lte: new Date(to) };
@@ -442,12 +461,27 @@ export async function getAllSales(searchParams: {
 
     let sales = salesDocs.map((doc: any) => mapSaleDocument(doc));
 
+    const now = new Date();
     if (range === "week") {
       sales = sales.filter((sale: Sale) => isThisWeek(new Date(sale.date)));
     } else if (range === "today") {
       sales = sales.filter((sale: Sale) => isToday(new Date(sale.date)));
     } else if (range === "month") {
       sales = sales.filter((sale: Sale) => isThisMonth(new Date(sale.date)));
+    } else if (range === "last3months") {
+      const start = startOfDay(subMonths(now, 3));
+      const end = endOfDay(now);
+      sales = sales.filter((sale: Sale) => {
+        const d = new Date(sale.date);
+        return d >= start && d <= end;
+      });
+    } else if (range === "lastYear") {
+      const start = startOfDay(subYears(now, 1));
+      const end = endOfDay(now);
+      sales = sales.filter((sale: Sale) => {
+        const d = new Date(sale.date);
+        return d >= start && d <= end;
+      });
     }
 
     return sales;

@@ -19,6 +19,8 @@ const RANGE_LABELS: Record<string, string> = {
   today: "Hoy",
   week: "Esta Semana",
   month: "Este Mes",
+  last3months: "Últimos 3 Meses",
+  lastYear: "Último Año",
 };
 
 export default async function PosCajasPage({

@@ -1,7 +1,15 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { isThisMonth, isThisWeek, isToday } from "date-fns";
+import {
+  endOfDay,
+  isThisMonth,
+  isThisWeek,
+  isToday,
+  startOfDay,
+  subMonths,
+  subYears,
+} from "date-fns";
 import connectDB from "@/lib/db";
 import CashMovementModel, { type ICashMovement } from "@/models/CashMovement";
 import CashRegisterSessionModel, {
@@ -267,6 +275,9 @@ export const closeCashRegister = async (
   }
 };
 
+/**
+ * Obtiene todas las sesiones de caja con soporte para filtrado por rangos de fecha.
+ */
 export async function getAllCashRegisterSessions(searchParams: {
   range?: string;
   from?: string;
@@ -280,14 +291,17 @@ export async function getAllCashRegisterSessions(searchParams: {
     if (range) {
       const now = new Date();
       if (range === "today") {
-        const start = new Date(now.setHours(0, 0, 0, 0));
-        const end = new Date(now.setHours(23, 59, 59, 999));
+        const start = startOfDay(now);
+        const end = endOfDay(now);
         query.openedAt = { $gte: start, $lte: end };
       } else if (range === "week") {
-        const start = new Date(now.setDate(now.getDate() - now.getDay()));
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay());
         start.setHours(0, 0, 0, 0);
-        const end = new Date(now.setDate(start.getDate() + 6));
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
         end.setHours(23, 59, 59, 999);
+        query.openedAt = { $gte: start, $lte: end };
       } else if (range === "month") {
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
         const end = new Date(
@@ -300,6 +314,14 @@ export async function getAllCashRegisterSessions(searchParams: {
           999,
         );
         query.openedAt = { $gte: start, $lte: end };
+      } else if (range === "last3months") {
+        const start = startOfDay(subMonths(now, 3));
+        const end = endOfDay(now);
+        query.openedAt = { $gte: start, $lte: end };
+      } else if (range === "lastYear") {
+        const start = startOfDay(subYears(now, 1));
+        const end = endOfDay(now);
+        query.openedAt = { $gte: start, $lte: end };
       }
     } else if (from && to) {
       query.openedAt = { $gte: new Date(from), $lte: new Date(to) };
@@ -309,8 +331,9 @@ export async function getAllCashRegisterSessions(searchParams: {
       openedAt: -1,
     });
 
-    let allSessions = sessionsDocs.map(mapSessionDocument);
+    let allSessions = sessionsDocs.map((doc) => mapSessionDocument(doc));
 
+    const now = new Date();
     if (range === "week") {
       allSessions = allSessions.filter((session: CashRegisterSession) =>
         isThisWeek(new Date(session.openedAt)),
@@ -319,10 +342,24 @@ export async function getAllCashRegisterSessions(searchParams: {
       allSessions = allSessions.filter((session: CashRegisterSession) =>
         isToday(new Date(session.openedAt)),
       );
-    } else if (range == "month") {
+    } else if (range === "month") {
       allSessions = allSessions.filter((session: CashRegisterSession) =>
         isThisMonth(new Date(session.openedAt)),
       );
+    } else if (range === "last3months") {
+      const start = startOfDay(subMonths(now, 3));
+      const end = endOfDay(now);
+      allSessions = allSessions.filter((session: CashRegisterSession) => {
+        const d = new Date(session.openedAt);
+        return d >= start && d <= end;
+      });
+    } else if (range === "lastYear") {
+      const start = startOfDay(subYears(now, 1));
+      const end = endOfDay(now);
+      allSessions = allSessions.filter((session: CashRegisterSession) => {
+        const d = new Date(session.openedAt);
+        return d >= start && d <= end;
+      });
     }
 
     return allSessions;
@@ -494,6 +531,9 @@ export async function deleteCashRegister(
   }
 }
 
+/**
+ * Obtiene las sesiones de caja de un POS específico, filtrando por rango de fecha.
+ */
 export async function getCashRegisterSessionsByPosName(
   posName: string,
   searchParams: {
@@ -504,19 +544,18 @@ export async function getCashRegisterSessionsByPosName(
 ): Promise<CashRegisterSession[]> {
   try {
     await connectDB();
-    // Similar filtering logic as getAllCashRegisterSessions but constrained by posName
     const { range, from, to } = searchParams;
     const query: any = { posName };
 
     if (range) {
       const now = new Date();
       if (range === "today") {
-        const start = new Date(now.setHours(0, 0, 0, 0));
-        const end = new Date(now.setHours(23, 59, 59, 999));
+        const start = startOfDay(now);
+        const end = endOfDay(now);
         query.openedAt = { $gte: start, $lte: end };
       } else if (range === "week") {
-        // Simplified mongo filter, refined by JS below
-        const start = new Date(now.setDate(now.getDate() - now.getDay()));
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay());
         start.setHours(0, 0, 0, 0);
         query.openedAt = { $gte: start };
       } else if (range === "month") {
@@ -531,6 +570,14 @@ export async function getCashRegisterSessionsByPosName(
           999,
         );
         query.openedAt = { $gte: start, $lte: end };
+      } else if (range === "last3months") {
+        const start = startOfDay(subMonths(now, 3));
+        const end = endOfDay(now);
+        query.openedAt = { $gte: start, $lte: end };
+      } else if (range === "lastYear") {
+        const start = startOfDay(subYears(now, 1));
+        const end = endOfDay(now);
+        query.openedAt = { $gte: start, $lte: end };
       }
     } else if (from && to) {
       query.openedAt = { $gte: new Date(from), $lte: new Date(to) };
@@ -539,8 +586,9 @@ export async function getCashRegisterSessionsByPosName(
     const sessionsDocs = await CashRegisterSessionModel.find(query).sort({
       openedAt: -1,
     });
-    let sessions = sessionsDocs.map(mapSessionDocument);
+    let sessions = sessionsDocs.map((doc) => mapSessionDocument(doc));
 
+    const now = new Date();
     if (range === "week") {
       sessions = sessions.filter((session: CashRegisterSession) =>
         isThisWeek(new Date(session.openedAt)),
@@ -549,10 +597,24 @@ export async function getCashRegisterSessionsByPosName(
       sessions = sessions.filter((session: CashRegisterSession) =>
         isToday(new Date(session.openedAt)),
       );
-    } else if (range == "month") {
+    } else if (range === "month") {
       sessions = sessions.filter((session: CashRegisterSession) =>
         isThisMonth(new Date(session.openedAt)),
       );
+    } else if (range === "last3months") {
+      const start = startOfDay(subMonths(now, 3));
+      const end = endOfDay(now);
+      sessions = sessions.filter((session: CashRegisterSession) => {
+        const d = new Date(session.openedAt);
+        return d >= start && d <= end;
+      });
+    } else if (range === "lastYear") {
+      const start = startOfDay(subYears(now, 1));
+      const end = endOfDay(now);
+      sessions = sessions.filter((session: CashRegisterSession) => {
+        const d = new Date(session.openedAt);
+        return d >= start && d <= end;
+      });
     }
 
     return sessions;
